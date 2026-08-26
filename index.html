@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DCC Monitor</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    /* ── Tokens ─────────────────────────────────────────────── */
+    :root {
+      --navy:       #0f1e2e;
+      --navy-mid:   #162436;
+      --navy-light: #1e3348;
+      --steel:      #2c4a63;
+      --rule:       #243a50;
+      --teal:       #00b4a0;
+      --teal-dim:   rgba(0,180,160,0.12);
+      --amber:      #f59e0b;
+      --red:        #ef4444;
+      --text:       #e2eaf2;
+      --text-mid:   #8ba3b8;
+      --text-dim:   #4d6880;
+      --card:       #162436;
+      --card-border:#1e3348;
+      --radius:     8px;
+      --font-mono:  'JetBrains Mono', 'Fira Mono', monospace;
+      --font-body:  'Inter', system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--navy);
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 14px;
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    /* ── Header ─────────────────────────────────────────────── */
+    header {
+      background: var(--navy-mid);
+      border-bottom: 1px solid var(--rule);
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-mark {
+      width: 28px;
+      height: 28px;
+      background: var(--teal);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--navy);
+      letter-spacing: -0.5px;
+      font-family: var(--font-mono);
+    }
+
+    .logo-text {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text);
+    }
+
+    .logo-sub {
+      font-size: 11px;
+      color: var(--text-mid);
+      letter-spacing: 0.04em;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .last-updated {
+      font-size: 11px;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+    }
+
+    .refresh-btn {
+      background: var(--teal-dim);
+      border: 1px solid var(--teal);
+      color: var(--teal);
+      padding: 6px 14px;
+      border-radius: var(--radius);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s;
+      letter-spacing: 0.03em;
+    }
+
+    .refresh-btn:hover { background: rgba(0,180,160,0.2); }
+    .refresh-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .spin { animation: spin 0.8s linear infinite; display: none; }
+    .refresh-btn.loading .spin { display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Job selector ────────────────────────────────────────── */
+    .job-bar {
+      background: var(--navy-mid);
+      border-bottom: 1px solid var(--rule);
+      padding: 10px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .job-bar label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-mid);
+    }
+
+    select {
+      background: var(--navy-light);
+      border: 1px solid var(--rule);
+      color: var(--text);
+      padding: 6px 10px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    select:focus { border-color: var(--teal); }
+
+    .job-meta {
+      margin-left: auto;
+      font-size: 11px;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+    }
+
+    /* ── Main layout ─────────────────────────────────────────── */
+    main {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* ── Section label ───────────────────────────────────────── */
+    .section-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 10px;
+    }
+
+    /* ── Device grid ─────────────────────────────────────────── */
+    .device-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 12px;
+    }
+
+    .device-card {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .device-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--text-dim);
+    }
+
+    .device-card.live::before   { background: var(--teal); }
+    .device-card.stale::before  { background: var(--amber); }
+    .device-card.offline::before { background: var(--red); }
+
+    .device-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .device-name {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text-dim);
+      flex-shrink: 0;
+    }
+
+    .device-card.live   .status-dot { background: var(--teal); box-shadow: 0 0 6px var(--teal); }
+    .device-card.stale  .status-dot { background: var(--amber); }
+    .device-card.offline .status-dot { background: var(--red); }
+
+    .device-location {
+      font-size: 11px;
+      color: var(--text-mid);
+      margin-bottom: 10px;
+      min-height: 16px;
+    }
+
+    .readings-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+    }
+
+    .reading {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .reading-label {
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: 0.04em;
+    }
+
+    .reading-value {
+      font-family: var(--font-mono);
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .reading-unit {
+      font-size: 10px;
+      color: var(--text-mid);
+      font-weight: 400;
+    }
+
+    .device-footer {
+      margin-top: 10px;
+      font-size: 10px;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+    }
+
+    /* ── Weather strip ───────────────────────────────────────── */
+    .weather-strip {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+
+    .weather-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    .weather-item {
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+    }
+
+    .weather-item span:first-child {
+      font-size: 11px;
+      color: var(--text-mid);
+    }
+
+    .weather-item strong {
+      font-family: var(--font-mono);
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    .weather-item em {
+      font-size: 10px;
+      font-style: normal;
+      color: var(--text-dim);
+    }
+
+    /* ── Chart card ──────────────────────────────────────────── */
+    .chart-card {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+
+    .chart-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .chart-controls label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-mid);
+    }
+
+    .chart-wrapper {
+      position: relative;
+      height: 320px;
+    }
+
+    /* ── Empty / loading states ──────────────────────────────── */
+    .empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 200px;
+      color: var(--text-dim);
+      font-size: 13px;
+      border: 1px dashed var(--rule);
+      border-radius: var(--radius);
+    }
+
+    .skeleton {
+      background: linear-gradient(90deg, var(--navy-light) 25%, var(--steel) 50%, var(--navy-light) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: 4px;
+      height: 16px;
+    }
+
+    @keyframes shimmer { to { background-position: -200% 0; } }
+
+    /* ── Responsive ──────────────────────────────────────────── */
+    @media (max-width: 600px) {
+      main { padding: 16px; gap: 16px; }
+      header { padding: 0 16px; }
+      .job-bar { padding: 10px 16px; }
+      .device-grid { grid-template-columns: 1fr 1fr; }
+      .readings-grid { grid-template-columns: 1fr 1fr 1fr; }
+    }
+
+    @media (max-width: 400px) {
+      .device-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-mark">DC</div>
+    <div>
+      <div class="logo-text">Disaster Care Capital</div>
+      <div class="logo-sub">Environmental Monitor</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <span class="last-updated" id="lastUpdated">—</span>
+    <button class="refresh-btn" id="refreshBtn" onclick="loadAll()">
+      <svg class="spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+      Refresh
+    </button>
+  </div>
+</header>
+
+<div class="job-bar">
+  <label for="jobSelect">Active job</label>
+  <select id="jobSelect" onchange="loadAll()">
+    <option value="">Loading...</option>
+  </select>
+  <span class="job-meta" id="jobMeta"></span>
+</div>
+
+<main>
+  <section id="devicesSection">
+    <div class="section-label">Devices</div>
+    <div class="device-grid" id="deviceGrid">
+      <div class="empty">Loading devices...</div>
+    </div>
+  </section>
+
+  <section id="weatherSection" style="display:none">
+    <div class="section-label">Weather — latest hour</div>
+    <div class="weather-strip" id="weatherStrip"></div>
+  </section>
+
+  <section>
+    <div class="section-label">Readings</div>
+    <div class="chart-card">
+      <div class="chart-controls">
+        <label for="metricSelect">Metric</label>
+        <select id="metricSelect" onchange="updateChart()">
+          <option value="temperature">Temperature (°C)</option>
+          <option value="humidity">Humidity (%)</option>
+          <option value="water_content">Water Content (g/m³)</option>
+        </select>
+        <label for="rangeSelect">Range</label>
+        <select id="rangeSelect" onchange="updateChart()">
+          <option value="0">All data</option>
+          <option value="24">Last 24 hours</option>
+          <option value="48">Last 48 hours</option>
+          <option value="168">Last 7 days</option>
+          <option value="336">Last 14 days</option>
+          <option value="720">Last 30 days</option>
+        </select>
+      </div>
+      <div class="chart-wrapper">
+        <canvas id="chart"></canvas>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  // ── Config ────────────────────────────────────────────────
+  const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+  const SUPABASE_KEY = 'YOUR_PUBLISHABLE_KEY';
+
+  const COLOURS = [
+    '#00b4a0', '#f59e0b', '#60a5fa', '#f472b6',
+    '#a78bfa', '#34d399', '#fb923c', '#e879f9'
+  ];
+
+  let allReadings = [];
+  let chart = null;
+  let devices = [];
+
+  // ── Supabase fetch ────────────────────────────────────────
+  async function sb(path) {
+    const resp = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+      }
+    });
+    if (!resp.ok) throw new Error(`Supabase error: ${resp.status}`);
+    return resp.json();
+  }
+
+  // ── Load everything ───────────────────────────────────────
+  async function loadAll() {
+    setLoading(true);
+
+    try {
+      // Load jobs
+      const jobs = await sb('jobs?select=*&active=eq.true&order=created_at.desc');
+      populateJobSelector(jobs);
+
+      const jobId = document.getElementById('jobSelect').value;
+      if (!jobId) { setLoading(false); return; }
+
+      const job = jobs.find(j => j.id == jobId);
+      if (job) {
+        document.getElementById('jobMeta').textContent =
+          `${job.postcode || ''}${job.job_start_date ? '  ·  Started ' + formatDate(job.job_start_date) : ''}`;
+      }
+
+      // Load readings for this job
+      allReadings = await sb(
+        `readings?select=*&job_id=eq.${jobId}&order=recorded_at.asc`
+      );
+
+      // Derive device list
+      devices = [...new Set(allReadings.map(r => r.device_name))].sort();
+
+      renderDeviceCards();
+      renderWeather();
+      updateChart();
+
+      document.getElementById('lastUpdated').textContent =
+        'Updated ' + new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+    } catch (e) {
+      console.error(e);
+      document.getElementById('deviceGrid').innerHTML =
+        `<div class="empty">Error loading data — check console</div>`;
+    }
+
+    setLoading(false);
+  }
+
+  // ── Job selector ──────────────────────────────────────────
+  function populateJobSelector(jobs) {
+    const sel = document.getElementById('jobSelect');
+    const current = sel.value;
+    sel.innerHTML = jobs.length === 0
+      ? '<option value="">No active jobs</option>'
+      : jobs.map(j => `<option value="${j.id}"${j.id == current ? ' selected' : ''}>${j.site_name || 'Job ' + j.id}</option>`).join('');
+  }
+
+  // ── Device cards ──────────────────────────────────────────
+  function renderDeviceCards() {
+    const grid = document.getElementById('deviceGrid');
+    if (devices.length === 0) {
+      grid.innerHTML = '<div class="empty">No devices found for this job</div>';
+      return;
+    }
+
+    const now = new Date();
+    grid.innerHTML = devices.map((name, i) => {
+      const deviceReadings = allReadings.filter(r => r.device_name === name);
+      const latest = deviceReadings[deviceReadings.length - 1];
+      const lastSeen = latest ? new Date(latest.recorded_at) : null;
+      const ageHours = lastSeen ? (now - lastSeen) / 3600000 : Infinity;
+
+      const statusClass = ageHours < 2 ? 'live' : ageHours < 24 ? 'stale' : 'offline';
+      const statusText  = ageHours < 2 ? 'Live' : ageHours < 24 ? 'Stale' : 'Offline';
+
+      const temp = latest?.temperature != null ? latest.temperature.toFixed(1) : '—';
+      const hum  = latest?.humidity    != null ? latest.humidity.toFixed(0)    : '—';
+      const wc   = latest?.water_content != null ? latest.water_content.toFixed(2) : '—';
+      const lastSeenStr = lastSeen
+        ? lastSeen.toLocaleString('en-GB', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })
+        : '—';
+
+      return `
+        <div class="device-card ${statusClass}">
+          <div class="device-header">
+            <span class="device-name">${name}</span>
+            <span class="status-dot" title="${statusText}"></span>
+          </div>
+          <div class="device-location">${statusText}</div>
+          <div class="readings-grid">
+            <div class="reading">
+              <span class="reading-label">Temp</span>
+              <span class="reading-value">${temp}<span class="reading-unit"> °C</span></span>
+            </div>
+            <div class="reading">
+              <span class="reading-label">RH</span>
+              <span class="reading-value">${hum}<span class="reading-unit"> %</span></span>
+            </div>
+            <div class="reading">
+              <span class="reading-label">WC</span>
+              <span class="reading-value">${wc}<span class="reading-unit"> g/m³</span></span>
+            </div>
+          </div>
+          <div class="device-footer">Last seen ${lastSeenStr}</div>
+        </div>`;
+    }).join('');
+  }
+
+  // ── Weather strip ─────────────────────────────────────────
+  function renderWeather() {
+    const latest = allReadings[allReadings.length - 1];
+    const section = document.getElementById('weatherSection');
+    const strip   = document.getElementById('weatherStrip');
+
+    if (!latest || latest.weather_temp == null) {
+      section.style.display = 'none';
+      return;
+    }
+
+    section.style.display = '';
+    strip.innerHTML = `
+      <span class="weather-label">Outside</span>
+      <div class="weather-item"><span>Temp</span><strong>${latest.weather_temp.toFixed(1)}</strong><em> °C</em></div>
+      <div class="weather-item"><span>Humidity</span><strong>${latest.weather_humidity?.toFixed(0) ?? '—'}</strong><em> %</em></div>
+      <div class="weather-item"><span>Rainfall</span><strong>${latest.rainfall?.toFixed(1) ?? '—'}</strong><em> mm</em></div>
+    `;
+  }
+
+  // ── Chart ─────────────────────────────────────────────────
+  function updateChart() {
+    const metric   = document.getElementById('metricSelect').value;
+    const hoursBack = parseInt(document.getElementById('rangeSelect').value) || 0;
+    const cutoff   = hoursBack ? new Date(Date.now() - hoursBack * 3600000) : null;
+
+    const filtered = cutoff
+      ? allReadings.filter(r => new Date(r.recorded_at) >= cutoff)
+      : allReadings;
+
+    // Build labels from unique timestamps
+    const timestamps = [...new Set(filtered.map(r => r.recorded_at))].sort();
+    const labels = timestamps.map(ts =>
+      new Date(ts).toLocaleString('en-GB', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })
+    );
+
+    const datasets = devices.map((name, i) => {
+      const deviceReadings = filtered.filter(r => r.device_name === name);
+      const byTs = Object.fromEntries(deviceReadings.map(r => [r.recorded_at, r]));
+      return {
+        label: name,
+        data: timestamps.map(ts => {
+          const val = byTs[ts]?.[metric];
+          return val != null ? parseFloat(val.toFixed(2)) : null;
+        }),
+        borderColor: COLOURS[i % COLOURS.length],
+        backgroundColor: COLOURS[i % COLOURS.length] + '18',
+        borderWidth: 1.5,
+        pointRadius: 2,
+        tension: 0.3,
+        spanGaps: true,
+      };
+    });
+
+    if (chart) chart.destroy();
+
+    chart = new Chart(document.getElementById('chart'), {
+      type: 'line',
+      data: { labels, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            labels: {
+              color: '#8ba3b8',
+              usePointStyle: true,
+              pointStyleWidth: 8,
+              font: { size: 11, family: "'JetBrains Mono', monospace" }
+            }
+          },
+          tooltip: {
+            backgroundColor: '#1e3348',
+            borderColor: '#243a50',
+            borderWidth: 1,
+            titleColor: '#8ba3b8',
+            bodyColor: '#e2eaf2',
+            callbacks: {
+              label: ctx => {
+                const v = ctx.parsed.y;
+                if (v == null) return `${ctx.dataset.label}: —`;
+                const unit = metric === 'temperature' ? '°C' : metric === 'humidity' ? '%' : ' g/m³';
+                return `${ctx.dataset.label}: ${v.toFixed(metric === 'humidity' ? 0 : 2)}${unit}`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color: '#4d6880', maxTicksLimit: 10, maxRotation: 30, font: { size: 10 } },
+            grid: { color: '#1e3348' }
+          },
+          y: {
+            ticks: { color: '#4d6880', font: { size: 11 } },
+            grid: { color: '#1e3348' }
+          }
+        }
+      }
+    });
+  }
+
+  // ── Helpers ───────────────────────────────────────────────
+  function setLoading(on) {
+    const btn = document.getElementById('refreshBtn');
+    btn.disabled = on;
+    btn.classList.toggle('loading', on);
+  }
+
+  function formatDate(d) {
+    return new Date(d).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+  }
+
+  // ── Init ──────────────────────────────────────────────────
+  loadAll();
+</script>
+</body>
+</html>
