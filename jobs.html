@@ -624,7 +624,6 @@
     const lastSeenStr = lastSeen.toLocaleString('en-GB', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
     const temp = latest.weather_temp != null ? latest.weather_temp.toFixed(1) : '—';
     const hum  = latest.weather_humidity != null ? latest.weather_humidity.toFixed(0) : '—';
-    const rain = latest.rainfall != null ? latest.rainfall.toFixed(1) : '—';
 
     const card = document.createElement('div');
     card.id = 'weatherCard';
@@ -650,10 +649,7 @@
           <span class="reading-label">RH</span>
           <span class="reading-value">${hum}<span class="reading-unit"> %</span></span>
         </div>
-        <div class="reading">
-          <span class="reading-label">Rain</span>
-          <span class="reading-value">${rain}<span class="reading-unit"> mm</span></span>
-        </div>
+
       </div>
       <div class="device-footer">Last seen ${lastSeenStr}</div>`;
 
@@ -717,20 +713,6 @@
         });
       }
 
-      // Always add rainfall on secondary y-axis when weather is on
-      datasets.push({
-        label: 'rainfall (mm)',
-        yAxisID: 'y2',
-        data: timestamps.map(ts => {
-          const row = filtered.find(r => r.recorded_at === ts && r.rainfall != null);
-          return row ? parseFloat(row.rainfall.toFixed(1)) : null;
-        }),
-        borderColor: '#60a5fa',
-        backgroundColor: '#60a5fa18',
-        borderWidth: 1, borderDash: [2, 3],
-        pointRadius: 1, tension: 0.3, spanGaps: true,
-        type: 'bar',
-      });
     }
 
     const unit = metric === 'temperature' ? '°C' : metric === 'humidity' ? '%' : ' g/m³';
@@ -765,14 +747,7 @@
             grid: { color: '#1e3348' },
             title: { display: true, text: unit, color: '#4d6880', font: { size: 10 } }
           },
-          y2: {
-            position: 'right',
-            display: showWeather,
-            ticks: { color: '#60a5fa', font: { size: 11 } },
-            grid: { drawOnChartArea: false },
-            title: { display: true, text: 'mm', color: '#60a5fa', font: { size: 10 } },
-            beginAtZero: true,
-          }
+
         }
       }
     });
