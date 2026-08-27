@@ -440,14 +440,14 @@
 
   // ── Supabase ───────────────────────────────────────────────
   async function sb(path, opts = {}) {
+    const headers = {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+    };
+    if (opts.prefer) headers['Prefer'] = opts.prefer;
     const resp = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${SUPABASE_KEY}`,
-        'Content-Type': 'application/json',
-        'Prefer': opts.prefer || '',
-        ...opts.headers,
-      },
+      headers,
       method: opts.method || 'GET',
       body: opts.body ? JSON.stringify(opts.body) : undefined,
     });
@@ -674,9 +674,9 @@
     status.style.color = 'var(--text-mid)';
 
     try {
-      await sb('job_devices', {
+      await sb('job_devices?on_conflict=job_id,device_name', {
         method: 'POST',
-        prefer: 'resolution=merge-duplicates',
+        prefer: 'resolution=merge-duplicates,return=minimal',
         body: { job_id: parseInt(jobId), device_name: editingDevice, location, type },
       });
 
