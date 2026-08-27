@@ -6,7 +6,6 @@
   <title>DCC Monitor</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
-    /* ── Tokens ─────────────────────────────────────────────── */
     :root {
       --navy:       #0f1e2e;
       --navy-mid:   #162436;
@@ -38,7 +37,7 @@
       min-height: 100vh;
     }
 
-    /* ── Header ─────────────────────────────────────────────── */
+    /* ── Header ── */
     header {
       background: var(--navy-mid);
       border-bottom: 1px solid var(--rule);
@@ -52,52 +51,24 @@
       z-index: 100;
     }
 
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
+    .logo { display: flex; align-items: center; gap: 10px; }
 
     .logo-mark {
-      width: 28px;
-      height: 28px;
+      width: 28px; height: 28px;
       background: var(--teal);
       border-radius: 6px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 13px;
-      font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700;
       color: var(--navy);
       letter-spacing: -0.5px;
       font-family: var(--font-mono);
     }
 
-    .logo-text {
-      font-size: 13px;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--text);
-    }
+    .logo-text { font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+    .logo-sub  { font-size: 11px; color: var(--text-mid); letter-spacing: 0.04em; }
 
-    .logo-sub {
-      font-size: 11px;
-      color: var(--text-mid);
-      letter-spacing: 0.04em;
-    }
-
-    .header-right {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
-
-    .last-updated {
-      font-size: 11px;
-      color: var(--text-dim);
-      font-family: var(--font-mono);
-    }
+    .header-right { display: flex; align-items: center; gap: 16px; }
+    .last-updated { font-size: 11px; color: var(--text-dim); font-family: var(--font-mono); }
 
     .refresh-btn {
       background: var(--teal-dim);
@@ -105,16 +76,11 @@
       color: var(--teal);
       padding: 6px 14px;
       border-radius: var(--radius);
-      font-size: 12px;
-      font-weight: 600;
+      font-size: 12px; font-weight: 600;
       cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 6px;
+      display: flex; align-items: center; gap: 6px;
       transition: background 0.15s;
-      letter-spacing: 0.03em;
     }
-
     .refresh-btn:hover { background: rgba(0,180,160,0.2); }
     .refresh-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
@@ -122,24 +88,16 @@
     .refresh-btn.loading .spin { display: inline-block; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ── Job selector ────────────────────────────────────────── */
+    /* ── Job bar ── */
     .job-bar {
       background: var(--navy-mid);
       border-bottom: 1px solid var(--rule);
       padding: 10px 24px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
     }
 
-    .job-bar label {
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      color: var(--text-mid);
-    }
+    .job-bar label { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-mid); }
+    .job-meta { margin-left: auto; font-size: 11px; color: var(--text-dim); font-family: var(--font-mono); }
 
     select {
       background: var(--navy-light);
@@ -148,40 +106,24 @@
       padding: 6px 10px;
       border-radius: var(--radius);
       font-size: 13px;
-      outline: none;
-      cursor: pointer;
+      outline: none; cursor: pointer;
     }
-
     select:focus { border-color: var(--teal); }
 
-    .job-meta {
-      margin-left: auto;
-      font-size: 11px;
-      color: var(--text-dim);
-      font-family: var(--font-mono);
-    }
-
-    /* ── Main layout ─────────────────────────────────────────── */
+    /* ── Main ── */
     main {
       max-width: 1280px;
       margin: 0 auto;
       padding: 24px;
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
+      display: flex; flex-direction: column; gap: 20px;
     }
 
-    /* ── Section label ───────────────────────────────────────── */
     .section-label {
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--text-dim);
-      margin-bottom: 10px;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--text-dim); margin-bottom: 10px;
     }
 
-    /* ── Device grid ─────────────────────────────────────────── */
+    /* ── Device grid ── */
     .device-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -205,42 +147,62 @@
       background: var(--text-dim);
     }
 
-    .device-card.live::before   { background: var(--teal); }
-    .device-card.stale::before  { background: var(--amber); }
+    .device-card.live::before    { background: var(--teal); }
+    .device-card.stale::before   { background: var(--amber); }
     .device-card.offline::before { background: var(--red); }
 
     .device-header {
-      display: flex;
-      align-items: center;
+      display: flex; align-items: center;
       justify-content: space-between;
-      margin-bottom: 10px;
+      margin-bottom: 6px;
     }
 
-    .device-name {
-      font-family: var(--font-mono);
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text);
-    }
+    .device-name { font-family: var(--font-mono); font-size: 13px; font-weight: 600; }
+
+    .device-header-right { display: flex; align-items: center; gap: 8px; }
 
     .status-dot {
-      width: 8px;
-      height: 8px;
+      width: 8px; height: 8px;
       border-radius: 50%;
       background: var(--text-dim);
-      flex-shrink: 0;
     }
-
     .device-card.live   .status-dot { background: var(--teal); box-shadow: 0 0 6px var(--teal); }
     .device-card.stale  .status-dot { background: var(--amber); }
     .device-card.offline .status-dot { background: var(--red); }
 
-    .device-location {
-      font-size: 11px;
-      color: var(--text-mid);
-      margin-bottom: 10px;
-      min-height: 16px;
+    .edit-btn {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      padding: 2px;
+      display: flex; align-items: center;
+      transition: color 0.15s;
+      line-height: 1;
     }
+    .edit-btn:hover { color: var(--teal); }
+
+    .device-meta {
+      display: flex; align-items: center; gap: 6px;
+      margin-bottom: 10px;
+      min-height: 18px;
+    }
+
+    .device-location {
+      font-size: 11px; color: var(--text-mid);
+      flex: 1;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    .type-badge {
+      font-size: 9px; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+    .type-badge.enclosed { background: var(--teal-dim); color: var(--teal); border: 1px solid var(--teal); }
+    .type-badge.ambient  { background: rgba(245,158,11,0.12); color: var(--amber); border: 1px solid var(--amber); }
 
     .readings-grid {
       display: grid;
@@ -248,82 +210,28 @@
       gap: 8px;
     }
 
-    .reading {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
+    .reading { display: flex; flex-direction: column; gap: 2px; }
+    .reading-label { font-size: 10px; color: var(--text-dim); letter-spacing: 0.04em; }
+    .reading-value { font-family: var(--font-mono); font-size: 15px; font-weight: 600; }
+    .reading-unit  { font-size: 10px; color: var(--text-mid); font-weight: 400; }
 
-    .reading-label {
-      font-size: 10px;
-      color: var(--text-dim);
-      letter-spacing: 0.04em;
-    }
+    .device-footer { margin-top: 10px; font-size: 10px; color: var(--text-dim); font-family: var(--font-mono); }
 
-    .reading-value {
-      font-family: var(--font-mono);
-      font-size: 15px;
-      font-weight: 600;
-      color: var(--text);
-    }
-
-    .reading-unit {
-      font-size: 10px;
-      color: var(--text-mid);
-      font-weight: 400;
-    }
-
-    .device-footer {
-      margin-top: 10px;
-      font-size: 10px;
-      color: var(--text-dim);
-      font-family: var(--font-mono);
-    }
-
-    /* ── Weather strip ───────────────────────────────────────── */
+    /* ── Weather ── */
     .weather-strip {
       background: var(--card);
       border: 1px solid var(--card-border);
       border-radius: var(--radius);
       padding: 12px 16px;
-      display: flex;
-      align-items: center;
-      gap: 24px;
-      flex-wrap: wrap;
+      display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
     }
+    .weather-label { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dim); }
+    .weather-item  { display: flex; align-items: baseline; gap: 4px; }
+    .weather-item span:first-child { font-size: 11px; color: var(--text-mid); }
+    .weather-item strong { font-family: var(--font-mono); font-size: 14px; }
+    .weather-item em { font-size: 10px; font-style: normal; color: var(--text-dim); }
 
-    .weather-label {
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--text-dim);
-    }
-
-    .weather-item {
-      display: flex;
-      align-items: baseline;
-      gap: 4px;
-    }
-
-    .weather-item span:first-child {
-      font-size: 11px;
-      color: var(--text-mid);
-    }
-
-    .weather-item strong {
-      font-family: var(--font-mono);
-      font-size: 14px;
-      color: var(--text);
-    }
-
-    .weather-item em {
-      font-size: 10px;
-      font-style: normal;
-      color: var(--text-dim);
-    }
-
-    /* ── Chart card ──────────────────────────────────────────── */
+    /* ── Chart ── */
     .chart-card {
       background: var(--card);
       border: 1px solid var(--card-border);
@@ -332,57 +240,94 @@
     }
 
     .chart-controls {
-      display: flex;
-      align-items: center;
-      gap: 12px;
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 16px; flex-wrap: wrap;
+    }
+    .chart-controls label { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-mid); }
+    .chart-wrapper { position: relative; height: 320px; }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 200;
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: var(--navy-mid);
+      border: 1px solid var(--rule);
+      border-radius: 12px;
+      padding: 24px;
+      width: 320px;
+      max-width: calc(100vw - 32px);
+    }
+
+    .modal h3 {
+      font-size: 14px; font-weight: 600;
       margin-bottom: 16px;
-      flex-wrap: wrap;
+      display: flex; align-items: center; gap: 8px;
     }
 
-    .chart-controls label {
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      color: var(--text-mid);
-    }
+    .modal h3 .modal-device { font-family: var(--font-mono); color: var(--teal); }
 
-    .chart-wrapper {
-      position: relative;
-      height: 320px;
-    }
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-mid); margin-bottom: 6px; }
 
-    /* ── Empty / loading states ──────────────────────────────── */
-    .empty {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 200px;
-      color: var(--text-dim);
-      font-size: 13px;
-      border: 1px dashed var(--rule);
+    .form-group input, .form-group select {
+      width: 100%;
+      background: var(--navy-light);
+      border: 1px solid var(--rule);
+      color: var(--text);
+      padding: 8px 10px;
       border-radius: var(--radius);
+      font-size: 13px;
+    }
+    .form-group input:focus, .form-group select:focus { border-color: var(--teal); outline: none; }
+
+    .modal-actions { display: flex; gap: 8px; margin-top: 20px; }
+
+    .btn-primary {
+      flex: 1;
+      background: var(--teal);
+      border: none; color: var(--navy);
+      padding: 8px 16px;
+      border-radius: var(--radius);
+      font-size: 13px; font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-primary:hover { opacity: 0.9; }
+
+    .btn-secondary {
+      background: none;
+      border: 1px solid var(--rule);
+      color: var(--text-mid);
+      padding: 8px 16px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .btn-secondary:hover { border-color: var(--text-mid); }
+
+    .save-status { font-size: 11px; color: var(--teal); margin-top: 8px; min-height: 16px; text-align: center; }
+
+    /* ── Empty ── */
+    .empty {
+      display: flex; align-items: center; justify-content: center;
+      height: 120px; color: var(--text-dim); font-size: 13px;
+      border: 1px dashed var(--rule); border-radius: var(--radius);
+      grid-column: 1/-1;
     }
 
-    .skeleton {
-      background: linear-gradient(90deg, var(--navy-light) 25%, var(--steel) 50%, var(--navy-light) 75%);
-      background-size: 200% 100%;
-      animation: shimmer 1.4s infinite;
-      border-radius: 4px;
-      height: 16px;
-    }
-
-    @keyframes shimmer { to { background-position: -200% 0; } }
-
-    /* ── Responsive ──────────────────────────────────────────── */
+    /* ── Responsive ── */
     @media (max-width: 600px) {
       main { padding: 16px; gap: 16px; }
       header { padding: 0 16px; }
       .job-bar { padding: 10px 16px; }
       .device-grid { grid-template-columns: 1fr 1fr; }
-      .readings-grid { grid-template-columns: 1fr 1fr 1fr; }
     }
-
     @media (max-width: 400px) {
       .device-grid { grid-template-columns: 1fr; }
     }
@@ -416,7 +361,7 @@
 </div>
 
 <main>
-  <section id="devicesSection">
+  <section>
     <div class="section-label">Devices</div>
     <div class="device-grid" id="deviceGrid">
       <div class="empty">Loading devices...</div>
@@ -455,38 +400,69 @@
   </section>
 </main>
 
+<!-- Edit device modal -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal">
+    <h3>Edit device <span class="modal-device" id="modalDeviceName"></span></h3>
+    <div class="form-group">
+      <label for="inputLocation">Location</label>
+      <input type="text" id="inputLocation" placeholder="e.g. Living room">
+    </div>
+    <div class="form-group">
+      <label for="inputType">Type</label>
+      <select id="inputType">
+        <option value="enclosed">Enclosed</option>
+        <option value="ambient">Ambient</option>
+      </select>
+    </div>
+    <div class="save-status" id="saveStatus"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveDeviceSettings()">Save</button>
+    </div>
+  </div>
+</div>
+
 <script>
-  // ── Config ────────────────────────────────────────────────
   const SUPABASE_URL = 'https://riidphmmavlmxpdbmsll.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_watyoR-O1_biXRiLc3iW_g_COoGPeCr';
 
   const COLOURS = [
-    '#00b4a0', '#f59e0b', '#60a5fa', '#f472b6',
-    '#a78bfa', '#34d399', '#fb923c', '#e879f9'
+    '#00b4a0','#f59e0b','#60a5fa','#f472b6',
+    '#a78bfa','#34d399','#fb923c','#e879f9'
   ];
 
-  let allReadings = [];
+  let allReadings   = [];
+  let deviceSettings = {}; // device_name -> { location, type }
   let chart = null;
   let devices = [];
+  let editingDevice = null;
 
-  // ── Supabase fetch ────────────────────────────────────────
-  async function sb(path) {
+  // ── Supabase ───────────────────────────────────────────────
+  async function sb(path, opts = {}) {
     const resp = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
       headers: {
         'apikey': SUPABASE_KEY,
         'Authorization': `Bearer ${SUPABASE_KEY}`,
-      }
+        'Content-Type': 'application/json',
+        'Prefer': opts.prefer || '',
+        ...opts.headers,
+      },
+      method: opts.method || 'GET',
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
     });
-    if (!resp.ok) throw new Error(`Supabase error: ${resp.status}`);
+    if (!resp.ok && resp.status !== 204) {
+      const txt = await resp.text();
+      throw new Error(`Supabase ${resp.status}: ${txt}`);
+    }
+    if (resp.status === 204) return null;
     return resp.json();
   }
 
-  // ── Load everything ───────────────────────────────────────
+  // ── Load everything ────────────────────────────────────────
   async function loadAll() {
     setLoading(true);
-
     try {
-      // Load jobs
       const jobs = await sb('jobs?select=*&active=eq.true&order=created_at.desc');
       populateJobSelector(jobs);
 
@@ -499,12 +475,14 @@
           `${job.postcode || ''}${job.job_start_date ? '  ·  Started ' + formatDate(job.job_start_date) : ''}`;
       }
 
-      // Load readings for this job
-      allReadings = await sb(
-        `readings?select=*&job_id=eq.${jobId}&order=recorded_at.asc`
-      );
+      // Load readings and device settings in parallel
+      const [readings, settings] = await Promise.all([
+        sb(`readings?select=*&job_id=eq.${jobId}&order=recorded_at.asc`),
+        sb(`job_devices?select=*&job_id=eq.${jobId}`)
+      ]);
 
-      // Derive device list
+      allReadings = readings;
+      deviceSettings = Object.fromEntries(settings.map(s => [s.device_name, s]));
       devices = [...new Set(allReadings.map(r => r.device_name))].sort();
 
       renderDeviceCards();
@@ -514,25 +492,26 @@
       document.getElementById('lastUpdated').textContent =
         'Updated ' + new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
-    } catch (e) {
+    } catch(e) {
       console.error(e);
       document.getElementById('deviceGrid').innerHTML =
         `<div class="empty">Error loading data — check console</div>`;
     }
-
     setLoading(false);
   }
 
-  // ── Job selector ──────────────────────────────────────────
+  // ── Job selector ───────────────────────────────────────────
   function populateJobSelector(jobs) {
     const sel = document.getElementById('jobSelect');
     const current = sel.value;
     sel.innerHTML = jobs.length === 0
       ? '<option value="">No active jobs</option>'
-      : jobs.map(j => `<option value="${j.id}"${j.id == current ? ' selected' : ''}>${j.site_name || 'Job ' + j.id}</option>`).join('');
+      : jobs.map(j =>
+          `<option value="${j.id}"${j.id == current ? ' selected' : ''}>${j.site_name || 'Job ' + j.id}</option>`
+        ).join('');
   }
 
-  // ── Device cards ──────────────────────────────────────────
+  // ── Device cards ───────────────────────────────────────────
   function renderDeviceCards() {
     const grid = document.getElementById('deviceGrid');
     if (devices.length === 0) {
@@ -543,16 +522,21 @@
     const now = new Date();
     grid.innerHTML = devices.map((name, i) => {
       const deviceReadings = allReadings.filter(r => r.device_name === name);
-      const latest = deviceReadings[deviceReadings.length - 1];
+      const latest  = deviceReadings[deviceReadings.length - 1];
       const lastSeen = latest ? new Date(latest.recorded_at) : null;
       const ageHours = lastSeen ? (now - lastSeen) / 3600000 : Infinity;
 
       const statusClass = ageHours < 2 ? 'live' : ageHours < 24 ? 'stale' : 'offline';
       const statusText  = ageHours < 2 ? 'Live' : ageHours < 24 ? 'Stale' : 'Offline';
 
-      const temp = latest?.temperature != null ? latest.temperature.toFixed(1) : '—';
-      const hum  = latest?.humidity    != null ? latest.humidity.toFixed(0)    : '—';
-      const wc   = latest?.water_content != null ? latest.water_content.toFixed(2) : '—';
+      const settings = deviceSettings[name] || {};
+      const location = settings.location || '';
+      const type     = settings.type || 'enclosed';
+
+      const temp = latest?.temperature   != null ? latest.temperature.toFixed(1)   : '—';
+      const hum  = latest?.humidity      != null ? latest.humidity.toFixed(0)       : '—';
+      const wc   = latest?.water_content != null ? latest.water_content.toFixed(2)  : '—';
+
       const lastSeenStr = lastSeen
         ? lastSeen.toLocaleString('en-GB', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })
         : '—';
@@ -561,9 +545,20 @@
         <div class="device-card ${statusClass}">
           <div class="device-header">
             <span class="device-name">${name}</span>
-            <span class="status-dot" title="${statusText}"></span>
+            <div class="device-header-right">
+              <button class="edit-btn" onclick="openModal('${name}')" title="Edit device settings">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+              </button>
+              <span class="status-dot" title="${statusText}"></span>
+            </div>
           </div>
-          <div class="device-location">${statusText}</div>
+          <div class="device-meta">
+            <span class="device-location">${location || statusText}</span>
+            <span class="type-badge ${type}">${type}</span>
+          </div>
           <div class="readings-grid">
             <div class="reading">
               <span class="reading-label">Temp</span>
@@ -583,84 +578,55 @@
     }).join('');
   }
 
-  // ── Weather strip ─────────────────────────────────────────
+  // ── Weather ────────────────────────────────────────────────
   function renderWeather() {
-    const latest = allReadings[allReadings.length - 1];
+    const latest  = allReadings[allReadings.length - 1];
     const section = document.getElementById('weatherSection');
     const strip   = document.getElementById('weatherStrip');
-
-    if (!latest || latest.weather_temp == null) {
-      section.style.display = 'none';
-      return;
-    }
-
+    if (!latest || latest.weather_temp == null) { section.style.display = 'none'; return; }
     section.style.display = '';
     strip.innerHTML = `
       <span class="weather-label">Outside</span>
       <div class="weather-item"><span>Temp</span><strong>${latest.weather_temp.toFixed(1)}</strong><em> °C</em></div>
-      <div class="weather-item"><span>Humidity</span><strong>${latest.weather_humidity?.toFixed(0) ?? '—'}</strong><em> %</em></div>
-      <div class="weather-item"><span>Rainfall</span><strong>${latest.rainfall?.toFixed(1) ?? '—'}</strong><em> mm</em></div>
-    `;
+      <div class="weather-item"><span>Humidity</span><strong>${(latest.weather_humidity ?? 0).toFixed(0)}</strong><em> %</em></div>
+      <div class="weather-item"><span>Rainfall</span><strong>${(latest.rainfall ?? 0).toFixed(1)}</strong><em> mm</em></div>`;
   }
 
-  // ── Chart ─────────────────────────────────────────────────
+  // ── Chart ──────────────────────────────────────────────────
   function updateChart() {
-    const metric   = document.getElementById('metricSelect').value;
+    const metric    = document.getElementById('metricSelect').value;
     const hoursBack = parseInt(document.getElementById('rangeSelect').value) || 0;
-    const cutoff   = hoursBack ? new Date(Date.now() - hoursBack * 3600000) : null;
+    const cutoff    = hoursBack ? new Date(Date.now() - hoursBack * 3600000) : null;
+    const filtered  = cutoff ? allReadings.filter(r => new Date(r.recorded_at) >= cutoff) : allReadings;
 
-    const filtered = cutoff
-      ? allReadings.filter(r => new Date(r.recorded_at) >= cutoff)
-      : allReadings;
-
-    // Build labels from unique timestamps
     const timestamps = [...new Set(filtered.map(r => r.recorded_at))].sort();
     const labels = timestamps.map(ts =>
       new Date(ts).toLocaleString('en-GB', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })
     );
 
     const datasets = devices.map((name, i) => {
-      const deviceReadings = filtered.filter(r => r.device_name === name);
-      const byTs = Object.fromEntries(deviceReadings.map(r => [r.recorded_at, r]));
+      const byTs = Object.fromEntries(filtered.filter(r => r.device_name === name).map(r => [r.recorded_at, r]));
       return {
         label: name,
-        data: timestamps.map(ts => {
-          const val = byTs[ts]?.[metric];
-          return val != null ? parseFloat(val.toFixed(2)) : null;
-        }),
+        data: timestamps.map(ts => { const v = byTs[ts]?.[metric]; return v != null ? parseFloat(v.toFixed(2)) : null; }),
         borderColor: COLOURS[i % COLOURS.length],
         backgroundColor: COLOURS[i % COLOURS.length] + '18',
-        borderWidth: 1.5,
-        pointRadius: 2,
-        tension: 0.3,
-        spanGaps: true,
+        borderWidth: 1.5, pointRadius: 2, tension: 0.3, spanGaps: true,
       };
     });
 
     if (chart) chart.destroy();
-
     chart = new Chart(document.getElementById('chart'), {
       type: 'line',
       data: { labels, datasets },
       options: {
-        responsive: true,
-        maintainAspectRatio: false,
+        responsive: true, maintainAspectRatio: false,
         interaction: { mode: 'index', intersect: false },
         plugins: {
-          legend: {
-            labels: {
-              color: '#8ba3b8',
-              usePointStyle: true,
-              pointStyleWidth: 8,
-              font: { size: 11, family: "'JetBrains Mono', monospace" }
-            }
-          },
+          legend: { labels: { color: '#8ba3b8', usePointStyle: true, pointStyleWidth: 8, font: { size: 11, family: "'JetBrains Mono', monospace" } } },
           tooltip: {
-            backgroundColor: '#1e3348',
-            borderColor: '#243a50',
-            borderWidth: 1,
-            titleColor: '#8ba3b8',
-            bodyColor: '#e2eaf2',
+            backgroundColor: '#1e3348', borderColor: '#243a50', borderWidth: 1,
+            titleColor: '#8ba3b8', bodyColor: '#e2eaf2',
             callbacks: {
               label: ctx => {
                 const v = ctx.parsed.y;
@@ -672,20 +638,70 @@
           }
         },
         scales: {
-          x: {
-            ticks: { color: '#4d6880', maxTicksLimit: 10, maxRotation: 30, font: { size: 10 } },
-            grid: { color: '#1e3348' }
-          },
-          y: {
-            ticks: { color: '#4d6880', font: { size: 11 } },
-            grid: { color: '#1e3348' }
-          }
+          x: { ticks: { color: '#4d6880', maxTicksLimit: 10, maxRotation: 30, font: { size: 10 } }, grid: { color: '#1e3348' } },
+          y: { ticks: { color: '#4d6880', font: { size: 11 } }, grid: { color: '#1e3348' } }
         }
       }
     });
   }
 
-  // ── Helpers ───────────────────────────────────────────────
+  // ── Modal ──────────────────────────────────────────────────
+  function openModal(deviceName) {
+    editingDevice = deviceName;
+    const settings = deviceSettings[deviceName] || {};
+    document.getElementById('modalDeviceName').textContent = deviceName;
+    document.getElementById('inputLocation').value = settings.location || '';
+    document.getElementById('inputType').value = settings.type || 'enclosed';
+    document.getElementById('saveStatus').textContent = '';
+    document.getElementById('modalOverlay').classList.add('open');
+    document.getElementById('inputLocation').focus();
+  }
+
+  function closeModal(e) {
+    if (e && e.target !== document.getElementById('modalOverlay')) return;
+    document.getElementById('modalOverlay').classList.remove('open');
+    editingDevice = null;
+  }
+
+  async function saveDeviceSettings() {
+    if (!editingDevice) return;
+    const jobId   = document.getElementById('jobSelect').value;
+    const location = document.getElementById('inputLocation').value.trim();
+    const type     = document.getElementById('inputType').value;
+    const status   = document.getElementById('saveStatus');
+
+    status.textContent = 'Saving...';
+    status.style.color = 'var(--text-mid)';
+
+    try {
+      await sb('job_devices', {
+        method: 'POST',
+        prefer: 'resolution=merge-duplicates',
+        body: { job_id: parseInt(jobId), device_name: editingDevice, location, type },
+      });
+
+      // Update local cache
+      deviceSettings[editingDevice] = { ...(deviceSettings[editingDevice] || {}), location, type };
+
+      status.textContent = 'Saved';
+      status.style.color = 'var(--teal)';
+
+      // Update cards without full reload
+      renderDeviceCards();
+
+      setTimeout(() => {
+        document.getElementById('modalOverlay').classList.remove('open');
+        editingDevice = null;
+      }, 600);
+
+    } catch(e) {
+      console.error(e);
+      status.textContent = 'Error saving — try again';
+      status.style.color = 'var(--red)';
+    }
+  }
+
+  // ── Helpers ────────────────────────────────────────────────
   function setLoading(on) {
     const btn = document.getElementById('refreshBtn');
     btn.disabled = on;
@@ -696,7 +712,12 @@
     return new Date(d).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
   }
 
-  // ── Init ──────────────────────────────────────────────────
+  // Close modal on Escape
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') document.getElementById('modalOverlay').classList.remove('open');
+  });
+
+  // ── Init ───────────────────────────────────────────────────
   loadAll();
 </script>
 </body>
