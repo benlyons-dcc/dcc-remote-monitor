@@ -371,11 +371,6 @@
     </div>
   </section>
 
-  <section id="weatherSection" style="display:none">
-    <div class="section-label">Weather — latest hour</div>
-    <div class="weather-strip" id="weatherStrip"></div>
-  </section>
-
   <section>
     <div class="section-label">Readings</div>
     <div class="chart-card">
@@ -395,6 +390,11 @@
           <option value="336">Last 14 days</option>
           <option value="720">Last 30 days</option>
         </select>
+        <button id="weatherToggle" onclick="toggleWeather()" style="
+          background:var(--teal-dim);border:1px solid var(--teal);color:var(--teal);
+          padding:6px 12px;border-radius:var(--radius);font-size:12px;font-weight:600;
+          cursor:pointer;margin-left:auto;transition:background 0.15s;
+        ">⛅ Weather on</button>
       </div>
       <div class="chart-wrapper">
         <canvas id="chart"></canvas>
@@ -440,6 +440,7 @@
   let chart = null;
   let devices = [];
   let editingDevice = null;
+  let showWeather = true;
 
   // ── Supabase ───────────────────────────────────────────────
   async function sb(path, opts = {}) {
@@ -509,6 +510,19 @@
         `<div class="empty">Error loading data — check console</div>`;
     }
     setLoading(false);
+  }
+
+  // ── Weather toggle ─────────────────────────────────────────
+  function toggleWeather() {
+    showWeather = !showWeather;
+    const btn = document.getElementById('weatherToggle');
+    btn.textContent = showWeather ? '⛅ Weather on' : '⛅ Weather off';
+    btn.style.background = showWeather ? 'var(--teal-dim)' : 'none';
+    btn.style.color = showWeather ? 'var(--teal)' : 'var(--text-dim)';
+    btn.style.borderColor = showWeather ? 'var(--teal)' : 'var(--rule)';
+    const weatherCard = document.getElementById('weatherCard');
+    if (weatherCard) weatherCard.style.display = showWeather ? '' : 'none';
+    updateChart();
   }
 
   // ── Archive job ────────────────────────────────────────────
@@ -595,18 +609,55 @@
     }).join('');
   }
 
-  // ── Weather ────────────────────────────────────────────────
+  // ── Weather card ───────────────────────────────────────────
   function renderWeather() {
-    const latest  = allReadings[allReadings.length - 1];
-    const section = document.getElementById('weatherSection');
-    const strip   = document.getElementById('weatherStrip');
-    if (!latest || latest.weather_temp == null) { section.style.display = 'none'; return; }
-    section.style.display = '';
-    strip.innerHTML = `
-      <span class="weather-label">Outside</span>
-      <div class="weather-item"><span>Temp</span><strong>${latest.weather_temp.toFixed(1)}</strong><em> °C</em></div>
-      <div class="weather-item"><span>Humidity</span><strong>${(latest.weather_humidity ?? 0).toFixed(0)}</strong><em> %</em></div>
-      <div class="weather-item"><span>Rainfall</span><strong>${(latest.rainfall ?? 0).toFixed(1)}</strong><em> mm</em></div>`;
+    const grid = document.getElementById('deviceGrid');
+    // Remove existing weather card if present
+    const existing = document.getElementById('weatherCard');
+    if (existing) existing.remove();
+
+    // Find latest row with weather data
+    const latest = [...allReadings].reverse().find(r => r.weather_temp != null);
+    if (!latest) return;
+
+    const lastSeen = new Date(latest.recorded_at);
+    const lastSeenStr = lastSeen.toLocaleString('en-GB', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+    const temp = latest.weather_temp != null ? latest.weather_temp.toFixed(1) : '—';
+    const hum  = latest.weather_humidity != null ? latest.weather_humidity.toFixed(0) : '—';
+    const rain = latest.rainfall != null ? latest.rainfall.toFixed(1) : '—';
+
+    const card = document.createElement('div');
+    card.id = 'weatherCard';
+    card.className = 'device-card live';
+    card.style.borderStyle = 'dashed';
+    card.innerHTML = `
+      <div class="device-header">
+        <span class="device-name">weather</span>
+        <div class="device-header-right">
+          <span class="status-dot" title="External"></span>
+        </div>
+      </div>
+      <div class="device-meta">
+        <span class="device-location">External conditions</span>
+        <span class="type-badge ambient">ambient</span>
+      </div>
+      <div class="readings-grid">
+        <div class="reading">
+          <span class="reading-label">Temp</span>
+          <span class="reading-value">${temp}<span class="reading-unit"> °C</span></span>
+        </div>
+        <div class="reading">
+          <span class="reading-label">RH</span>
+          <span class="reading-value">${hum}<span class="reading-unit"> %</span></span>
+        </div>
+        <div class="reading">
+          <span class="reading-label">Rain</span>
+          <span class="reading-value">${rain}<span class="reading-unit"> mm</span></span>
+        </div>
+      </div>
+      <div class="device-footer">Last seen ${lastSeenStr}</div>`;
+
+    grid.appendChild(card);
   }
 
   // ── Chart ──────────────────────────────────────────────────
@@ -621,16 +672,68 @@
       new Date(ts).toLocaleString('en-GB', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })
     );
 
+    // Sensor datasets on primary y-axis
     const datasets = devices.map((name, i) => {
       const byTs = Object.fromEntries(filtered.filter(r => r.device_name === name).map(r => [r.recorded_at, r]));
       return {
         label: name,
+        yAxisID: 'y',
         data: timestamps.map(ts => { const v = byTs[ts]?.[metric]; return v != null ? parseFloat(v.toFixed(2)) : null; }),
         borderColor: COLOURS[i % COLOURS.length],
         backgroundColor: COLOURS[i % COLOURS.length] + '18',
         borderWidth: 1.5, pointRadius: 2, tension: 0.3, spanGaps: true,
       };
     });
+
+    // Weather datasets — shown only when toggled on
+    if (showWeather) {
+      // For temp and humidity, show weather equivalent on primary axis
+      // For water content, skip weather (no equivalent)
+      if (metric === 'temperature') {
+        datasets.push({
+          label: 'weather temp',
+          yAxisID: 'y',
+          data: timestamps.map(ts => {
+            const row = filtered.find(r => r.recorded_at === ts && r.weather_temp != null);
+            return row ? parseFloat(row.weather_temp.toFixed(1)) : null;
+          }),
+          borderColor: '#94a3b8',
+          backgroundColor: '#94a3b818',
+          borderWidth: 1.5, borderDash: [4, 3],
+          pointRadius: 1, tension: 0.3, spanGaps: true,
+        });
+      } else if (metric === 'humidity') {
+        datasets.push({
+          label: 'weather humidity',
+          yAxisID: 'y',
+          data: timestamps.map(ts => {
+            const row = filtered.find(r => r.recorded_at === ts && r.weather_humidity != null);
+            return row ? parseFloat(row.weather_humidity.toFixed(0)) : null;
+          }),
+          borderColor: '#94a3b8',
+          backgroundColor: '#94a3b818',
+          borderWidth: 1.5, borderDash: [4, 3],
+          pointRadius: 1, tension: 0.3, spanGaps: true,
+        });
+      }
+
+      // Always add rainfall on secondary y-axis when weather is on
+      datasets.push({
+        label: 'rainfall (mm)',
+        yAxisID: 'y2',
+        data: timestamps.map(ts => {
+          const row = filtered.find(r => r.recorded_at === ts && r.rainfall != null);
+          return row ? parseFloat(row.rainfall.toFixed(1)) : null;
+        }),
+        borderColor: '#60a5fa',
+        backgroundColor: '#60a5fa18',
+        borderWidth: 1, borderDash: [2, 3],
+        pointRadius: 1, tension: 0.3, spanGaps: true,
+        type: 'bar',
+      });
+    }
+
+    const unit = metric === 'temperature' ? '°C' : metric === 'humidity' ? '%' : ' g/m³';
 
     if (chart) chart.destroy();
     chart = new Chart(document.getElementById('chart'), {
@@ -648,15 +751,28 @@
               label: ctx => {
                 const v = ctx.parsed.y;
                 if (v == null) return `${ctx.dataset.label}: —`;
-                const unit = metric === 'temperature' ? '°C' : metric === 'humidity' ? '%' : ' g/m³';
-                return `${ctx.dataset.label}: ${v.toFixed(metric === 'humidity' ? 0 : 2)}${unit}`;
+                const u = ctx.dataset.label === 'rainfall (mm)' ? ' mm' : unit;
+                return `${ctx.dataset.label}: ${v.toFixed(ctx.dataset.label.includes('humidity') ? 0 : 2)}${u}`;
               }
             }
           }
         },
         scales: {
           x: { ticks: { color: '#4d6880', maxTicksLimit: 10, maxRotation: 30, font: { size: 10 } }, grid: { color: '#1e3348' } },
-          y: { ticks: { color: '#4d6880', font: { size: 11 } }, grid: { color: '#1e3348' } }
+          y: {
+            position: 'left',
+            ticks: { color: '#4d6880', font: { size: 11 } },
+            grid: { color: '#1e3348' },
+            title: { display: true, text: unit, color: '#4d6880', font: { size: 10 } }
+          },
+          y2: {
+            position: 'right',
+            display: showWeather,
+            ticks: { color: '#60a5fa', font: { size: 11 } },
+            grid: { drawOnChartArea: false },
+            title: { display: true, text: 'mm', color: '#60a5fa', font: { size: 10 } },
+            beginAtZero: true,
+          }
         }
       }
     });
