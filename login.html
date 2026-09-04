@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DCC Monitor — Sign in</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <style>
+    :root {
+      --navy:#0f1e2e;--navy-mid:#162436;--navy-light:#1e3348;--rule:#243a50;
+      --teal:#00b4a0;--teal-dim:rgba(0,180,160,0.12);--red:#ef4444;
+      --text:#e2eaf2;--text-mid:#8ba3b8;--radius:8px;
+      --font-mono:'JetBrains Mono','Fira Mono',monospace;
+      --font-body:'Inter',system-ui,sans-serif;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{background:var(--navy);color:var(--text);font-family:var(--font-body);font-size:14px;min-height:100vh;display:flex;align-items:center;justify-content:center;}
+    .card{background:var(--navy-mid);border:1px solid var(--rule);border-radius:12px;padding:40px;width:380px;max-width:calc(100vw - 32px);}
+    .logo{display:flex;align-items:center;gap:12px;margin-bottom:32px;}
+    .logo-mark{width:36px;height:36px;background:var(--teal);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:var(--navy);font-family:var(--font-mono);}
+    .logo-text{font-size:14px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;}
+    .logo-sub{font-size:12px;color:var(--text-mid);}
+    h2{font-size:18px;font-weight:600;margin-bottom:8px;}
+    .subtitle{font-size:13px;color:var(--text-mid);margin-bottom:28px;line-height:1.5;}
+    label{display:block;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-mid);margin-bottom:6px;}
+    input{width:100%;background:var(--navy-light);border:1px solid var(--rule);color:var(--text);padding:10px 12px;border-radius:var(--radius);font-size:14px;font-family:var(--font-body);outline:none;transition:border-color 0.15s;}
+    input:focus{border-color:var(--teal);}
+    .btn{width:100%;background:var(--teal);border:none;color:var(--navy);padding:11px 16px;border-radius:var(--radius);font-size:14px;font-weight:600;cursor:pointer;margin-top:12px;transition:opacity 0.15s;}
+    .btn:hover{opacity:0.9;}
+    .btn:disabled{opacity:0.5;cursor:not-allowed;}
+    .msg{margin-top:16px;padding:12px;border-radius:var(--radius);font-size:13px;display:none;}
+    .msg.success{background:var(--teal-dim);border:1px solid var(--teal);color:var(--teal);display:block;}
+    .msg.error{background:rgba(239,68,68,0.1);border:1px solid var(--red);color:var(--red);display:block;}
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <div class="logo-mark">DC</div>
+    <div><div class="logo-text">Disaster Care Capital</div><div class="logo-sub">Environmental Monitor</div></div>
+  </div>
+  <h2>Sign in</h2>
+  <p class="subtitle">Enter your email and we'll send you a sign-in link. No password needed.</p>
+  <label for="email">Email address</label>
+  <input type="email" id="email" placeholder="you@disastercare.co.uk" autofocus>
+  <button class="btn" id="btn" onclick="send()">Send sign-in link</button>
+  <div class="msg" id="msg"></div>
+</div>
+<script>
+  const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+  const SUPABASE_KEY = 'YOUR_PUBLISHABLE_KEY';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  // Already logged in — go straight to app
+  sb.auth.getSession().then(({ data: { session } }) => {
+    if (session) window.location.href = 'index.html';
+  });
+
+  // Handle redirect back from magic link
+  sb.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_IN' && session) window.location.href = 'index.html';
+  });
+
+  document.getElementById('email').addEventListener('keydown', e => {
+    if (e.key === 'Enter') send();
+  });
+
+  async function send() {
+    const email = document.getElementById('email').value.trim();
+    const btn   = document.getElementById('btn');
+    const msg   = document.getElementById('msg');
+    msg.className = 'msg';
+
+    if (!email) {
+      msg.className = 'msg error';
+      msg.textContent = 'Please enter your email address.';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
+
+    const redirectTo = window.location.origin +
+      window.location.pathname.replace('login.html', 'index.html');
+
+    const { error } = await sb.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: redirectTo }
+    });
+
+    if (error) {
+      msg.className = 'msg error';
+      msg.textContent = 'Error: ' + error.message;
+      btn.disabled = false;
+      btn.textContent = 'Send sign-in link';
+    } else {
+      msg.className = 'msg success';
+      msg.textContent = 'Check your email — a sign-in link is on its way.';
+      btn.textContent = 'Link sent';
+    }
+  }
+</script>
+</body>
+</html>
