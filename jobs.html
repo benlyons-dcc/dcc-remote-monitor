@@ -382,6 +382,9 @@
           <option value="temperature">Temperature (°C)</option>
           <option value="humidity">Humidity (%)</option>
           <option value="water_content">Water Content (g/m³)</option>
+          <option value="gpk">Moisture Ratio GPK (g/kg)</option>
+          <option value="dwt">Dew Point (°C)</option>
+          <option value="pdv">Sat. Vapour Pressure (mbar)</option>
         </select>
         <label for="rangeSelect">Range</label>
         <select id="rangeSelect" onchange="updateChart()">
@@ -547,6 +550,34 @@
   }
 
   // ── Device cards ───────────────────────────────────────────
+  // ── Metric config ──────────────────────────────────────────
+  const METRICS = {
+    temperature:   { unit: '°C',    dp: 1, weather: 'weather_temp' },
+    humidity:      { unit: '%',     dp: 0, weather: 'weather_humidity' },
+    water_content: { unit: ' g/m³', dp: 2, weather: 'wct' },
+    gpk:           { unit: ' g/kg', dp: 2, weather: 'gpk' },
+    dwt:           { unit: '°C',    dp: 1, weather: 'dwt' },
+    pdv:           { unit: ' mbar', dp: 2, weather: 'pdv' },
+  };
+
+  // Same formulas as the Supabase generated columns (Magnus, Bolton constants)
+  function psychro(T, RH, P = 1013.25) {
+    if (T == null || RH == null || RH <= 0 || RH > 100) return {};
+    T = Number(T); RH = Number(RH);
+    const x  = 17.67 * T / (T + 243.5);
+    const es = 6.112 * Math.exp(x);
+    const e  = es * RH / 100;
+    const g  = Math.log(RH / 100) + x;
+    return {
+      pdv: es,
+      dwt: 243.5 * g / (17.67 - g),
+      wct: 216.7 * e / (T + 273.15),
+      gpk: 621.97 * e / (P - e),
+    };
+  }
+
+  const fmt = (v, dp) => v != null && !isNaN(v) ? Number(v).toFixed(dp) : '—';
+
   function renderDeviceCards() {
     const grid = document.getElementById('deviceGrid');
     if (devices.length === 0) {
@@ -571,6 +602,9 @@
       const temp = latest?.temperature   != null ? latest.temperature.toFixed(1)   : '—';
       const hum  = latest?.humidity      != null ? latest.humidity.toFixed(0)       : '—';
       const wc   = latest?.water_content != null ? latest.water_content.toFixed(2)  : '—';
+      const gpk  = fmt(latest?.gpk, 2);
+      const dwt  = fmt(latest?.dwt, 1);
+      const pdv  = fmt(latest?.pdv, 1);
 
       const lastSeenStr = lastSeen
         ? lastSeen.toLocaleString('en-GB', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })
@@ -607,6 +641,18 @@
               <span class="reading-label">WC</span>
               <span class="reading-value">${wc}<span class="reading-unit"> g/m³</span></span>
             </div>
+            <div class="reading">
+              <span class="reading-label">GPK</span>
+              <span class="reading-value">${gpk}<span class="reading-unit"> g/kg</span></span>
+            </div>
+            <div class="reading">
+              <span class="reading-label">Dew pt</span>
+              <span class="reading-value">${dwt}<span class="reading-unit"> °C</span></span>
+            </div>
+            <div class="reading">
+              <span class="reading-label">PDV</span>
+              <span class="reading-value">${pdv}<span class="reading-unit"> mbar</span></span>
+            </div>
           </div>
           <div class="device-footer">Last seen ${lastSeenStr}</div>
         </div>`;
@@ -628,6 +674,7 @@
     const lastSeenStr = lastSeen.toLocaleString('en-GB', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
     const temp = latest.weather_temp != null ? latest.weather_temp.toFixed(1) : '—';
     const hum  = latest.weather_humidity != null ? latest.weather_humidity.toFixed(0) : '—';
+    const wp   = psychro(latest.weather_temp, latest.weather_humidity);
 
     const card = document.createElement('div');
     card.id = 'weatherCard';
@@ -653,7 +700,18 @@
           <span class="reading-label">RH</span>
           <span class="reading-value">${hum}<span class="reading-unit"> %</span></span>
         </div>
-
+        <div class="reading">
+          <span class="reading-label">WC</span>
+          <span class="reading-value">${fmt(wp.wct, 2)}<span class="reading-unit"> g/m³</span></span>
+        </div>
+        <div class="reading">
+          <span class="reading-label">GPK</span>
+          <span class="reading-value">${fmt(wp.gpk, 2)}<span class="reading-unit"> g/kg</span></span>
+        </div>
+        <div class="reading">
+          <span class="reading-label">Dew pt</span>
+          <span class="reading-value">${fmt(wp.dwt, 1)}<span class="reading-unit"> °C</span></span>
+        </div>
       </div>
       <div class="device-footer">Last seen ${lastSeenStr}</div>`;
 
@@ -678,7 +736,7 @@
       return {
         label: name,
         yAxisID: 'y',
-        data: timestamps.map(ts => { const v = byTs[ts]?.[metric]; return v != null ? parseFloat(v.toFixed(2)) : null; }),
+        data: timestamps.map(ts => { const v = byTs[ts]?.[metric]; return v != null ? parseFloat(Number(v).toFixed(2)) : null; }),
         borderColor: COLOURS[i % COLOURS.length],
         backgroundColor: COLOURS[i % COLOURS.length] + '18',
         borderWidth: 1.5, pointRadius: 2, tension: 0.3, spanGaps: true,
@@ -686,40 +744,27 @@
     });
 
     // Weather datasets — shown only when toggled on
-    if (showWeather) {
-      // For temp and humidity, show weather equivalent on primary axis
-      // For water content, skip weather (no equivalent)
-      if (metric === 'temperature') {
-        datasets.push({
-          label: 'weather temp',
-          yAxisID: 'y',
-          data: timestamps.map(ts => {
-            const row = filtered.find(r => r.recorded_at === ts && r.weather_temp != null);
-            return row ? parseFloat(row.weather_temp.toFixed(1)) : null;
-          }),
-          borderColor: '#94a3b8',
-          backgroundColor: '#94a3b818',
-          borderWidth: 1.5, borderDash: [4, 3],
-          pointRadius: 1, tension: 0.3, spanGaps: true,
-        });
-      } else if (metric === 'humidity') {
-        datasets.push({
-          label: 'weather humidity',
-          yAxisID: 'y',
-          data: timestamps.map(ts => {
-            const row = filtered.find(r => r.recorded_at === ts && r.weather_humidity != null);
-            return row ? parseFloat(row.weather_humidity.toFixed(0)) : null;
-          }),
-          borderColor: '#94a3b8',
-          backgroundColor: '#94a3b818',
-          borderWidth: 1.5, borderDash: [4, 3],
-          pointRadius: 1, tension: 0.3, spanGaps: true,
-        });
-      }
-
+    // Temp/RH come straight from the weather columns; the rest are calculated from them
+    const cfg = METRICS[metric] || { unit: '', dp: 2 };
+    if (showWeather && cfg.weather) {
+      const direct = cfg.weather.startsWith('weather_');
+      datasets.push({
+        label: 'weather ' + (metric === 'water_content' ? 'wc' : metric === 'temperature' ? 'temp' : metric),
+        yAxisID: 'y',
+        data: timestamps.map(ts => {
+          const row = filtered.find(r => r.recorded_at === ts && r.weather_temp != null);
+          if (!row) return null;
+          const v = direct ? row[cfg.weather] : psychro(row.weather_temp, row.weather_humidity)[cfg.weather];
+          return v != null ? parseFloat(Number(v).toFixed(cfg.dp)) : null;
+        }),
+        borderColor: '#94a3b8',
+        backgroundColor: '#94a3b818',
+        borderWidth: 1.5, borderDash: [4, 3],
+        pointRadius: 1, tension: 0.3, spanGaps: true,
+      });
     }
 
-    const unit = metric === 'temperature' ? '°C' : metric === 'humidity' ? '%' : ' g/m³';
+    const unit = cfg.unit;
 
     if (chart) chart.destroy();
     chart = new Chart(document.getElementById('chart'), {
@@ -738,7 +783,7 @@
                 const v = ctx.parsed.y;
                 if (v == null) return `${ctx.dataset.label}: —`;
                 const u = ctx.dataset.label === 'rainfall (mm)' ? ' mm' : unit;
-                return `${ctx.dataset.label}: ${v.toFixed(ctx.dataset.label.includes('humidity') ? 0 : 2)}${u}`;
+                return `${ctx.dataset.label}: ${v.toFixed(cfg.dp)}${u}`;
               }
             }
           }
@@ -845,9 +890,6 @@
     if (e.key === 'Escape') document.getElementById('modalOverlay').classList.remove('open');
   });
 
-  // ── Init ───────────────────────────────────────────────────
-  loadAll();
-
   // ── Auth ───────────────────────────────────────────────────
   const sb_auth = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -862,6 +904,10 @@
   }
 
   checkAuth();
+
+  // ── Init ───────────────────────────────────────────────────
+  // Must run after sb_auth is created (sb() reads it immediately)
+  loadAll();
 
 </script>
 </body>
