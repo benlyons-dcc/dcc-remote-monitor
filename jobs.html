@@ -3,813 +3,602 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DCC Monitor</title>
+  <title>Job · DCC Environmental Monitor</title>
+  <link rel="stylesheet" href="theme.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
-    :root {
-      --navy:       #0f1e2e;
-      --navy-mid:   #162436;
-      --navy-light: #1e3348;
-      --steel:      #2c4a63;
-      --rule:       #243a50;
-      --teal:       #00b4a0;
-      --teal-dim:   rgba(0,180,160,0.12);
-      --amber:      #f59e0b;
-      --red:        #ef4444;
-      --text:       #e2eaf2;
-      --text-mid:   #8ba3b8;
-      --text-dim:   #4d6880;
-      --card:       #162436;
-      --card-border:#1e3348;
-      --radius:     8px;
-      --font-mono:  'JetBrains Mono', 'Fira Mono', monospace;
-      --font-body:  'Inter', system-ui, sans-serif;
-    }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      background: var(--navy);
-      color: var(--text);
-      font-family: var(--font-body);
-      font-size: 14px;
-      line-height: 1.5;
-      min-height: 100vh;
-    }
-
-    /* ── Header ── */
-    header {
-      background: var(--navy-mid);
-      border-bottom: 1px solid var(--rule);
-      padding: 0 24px;
-      height: 56px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-    }
-
-    .logo { display: flex; align-items: center; gap: 10px; }
-
-    .logo-mark {
-      width: 28px; height: 28px;
-      background: var(--teal);
-      border-radius: 6px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 13px; font-weight: 700;
-      color: var(--navy);
-      letter-spacing: -0.5px;
-      font-family: var(--font-mono);
-    }
-
-    .logo-text { font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
-    .logo-sub  { font-size: 11px; color: var(--text-mid); letter-spacing: 0.04em; }
-
-    .header-right { display: flex; align-items: center; gap: 16px; }
-    .last-updated { font-size: 11px; color: var(--text-dim); font-family: var(--font-mono); }
-
-    .refresh-btn {
-      background: var(--teal-dim);
-      border: 1px solid var(--teal);
-      color: var(--teal);
-      padding: 6px 14px;
-      border-radius: var(--radius);
-      font-size: 12px; font-weight: 600;
-      cursor: pointer;
-      display: flex; align-items: center; gap: 6px;
-      transition: background 0.15s;
-    }
-    .refresh-btn:hover { background: rgba(0,180,160,0.2); }
-    .refresh-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-    .spin { animation: spin 0.8s linear infinite; display: none; }
-    .refresh-btn.loading .spin { display: inline-block; }
+    /* Title row */
+    .title-row { display: flex; align-items: flex-start; gap: 12px; padding-bottom: 10px; border-bottom: 1px solid #ccc; margin-bottom: 14px; }
+    .title-row h1 { font-size: 20px; font-weight: 400; line-height: 28px; }
+    .title-row .sub { color: var(--text); }
+    .title-right { margin-left: auto; display: flex; align-items: center; gap: 8px; position: relative; }
+    .updated { color: var(--text-dim); font-size: 12px; }
+    .gear-menu { display: none; position: absolute; right: 0; top: 34px; z-index: 50; background: #fff; border: 1px solid var(--rule); border-radius: 4px; box-shadow: 0 4px 14px rgba(0,0,0,0.15); min-width: 170px; }
+    .gear-menu.open { display: block; }
+    .gear-menu button { display: block; width: 100%; text-align: left; padding: 8px 12px; background: none; border: 0; }
+    .gear-menu button:hover { background: #f1f1f1; }
+    .spin { animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ── Job bar ── */
-    .job-bar {
-      background: var(--navy-mid);
-      border-bottom: 1px solid var(--rule);
-      padding: 10px 24px;
-      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-    }
+    /* Chart + sidebar */
+    .chart-view { display: flex; gap: 14px; }
+    .chart-box { flex: 1; min-width: 0; height: 490px; position: relative; }
+    .chart-box .no-series { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--text-dim); }
+    .sidebar { width: 300px; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; }
+    .sidebar hr { border: 0; border-top: 1px solid #ccc; margin: 4px 0; }
+    .sidebar .field { margin-bottom: 0; }
+    .collapse { display: none; background: #f7f7f7; border: 1px solid #e3e3e3; border-radius: 4px; padding: 8px; }
+    .collapse.open { display: block; }
+    .axis-grid { display: grid; grid-template-columns: auto 1fr 1fr; gap: 6px 8px; align-items: center; }
+    .axis-grid input { height: 30px; padding: 3px 8px; border: 1px solid var(--input-bd); border-radius: 3.5px; width: 100%; font: inherit; }
+    .type-list { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .type-item { display: flex; align-items: center; gap: 6px; font-weight: 700; cursor: pointer; }
+    .side-msg { font-size: 12px; color: var(--red); min-height: 16px; }
 
-    .job-bar label { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-mid); }
-    .job-meta { margin-left: auto; font-size: 11px; color: var(--text-dim); font-family: var(--font-mono); }
+    /* Node cards */
+    .nodes { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; margin-top: 14px; }
+    .node { border: 1px solid var(--green); border-radius: 4px; overflow: hidden; background: #fff; }
+    .node .status-bar { background: var(--green); padding: 4px; display: flex; align-items: center; }
+    .node .status-text { color: #fff; font-weight: 700; padding: 0 8px; }
+    .node .signal { width: 24px; height: 24px; border: 1px solid #fff; border-radius: 2px; display: inline-flex; align-items: flex-end; justify-content: center; gap: 2px; padding: 3px; }
+    .node .signal i { width: 4px; background: #fff; opacity: 0.35; }
+    .node .signal i.on { opacity: 1; }
+    .node.stale   { border-color: var(--amber); } .node.stale .status-bar { background: var(--amber); }
+    .node.offline { border-color: var(--red); }   .node.offline .status-bar { background: var(--red); }
+    .node.external { border-color: var(--grey); } .node.external .status-bar { background: var(--grey); }
+    .node .contents { padding: 4px; }
+    .node .info-row { display: flex; min-height: 24px; align-items: center; }
+    .node .info-label { width: 120px; padding-left: 8px; font-weight: 700; flex-shrink: 0; }
+    .node .info-val { display: flex; align-items: center; gap: 6px; min-width: 0; }
+    .node .info-val .pen { background: none; border: 0; padding: 0 2px; color: #222; display: inline-flex; }
+    .node .info-head { margin-bottom: 6px; }
 
-    select {
-      background: var(--navy-light);
-      border: 1px solid var(--rule);
-      color: var(--text);
-      padding: 6px 10px;
-      border-radius: var(--radius);
-      font-size: 13px;
-      outline: none; cursor: pointer;
-    }
-    select:focus { border-color: var(--teal); }
+    .sensor-row { background: var(--row); border-radius: 4px; margin-top: 4px; }
+    .sensor-row.sel { background: var(--row-sel); }
+    .sensor-row .row { display: flex; align-items: center; padding: 4px; gap: 8px; }
+    .sensor-row .code { width: 48px; font-weight: 400; text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; padding-left: 2px; }
+    .sensor-row .val-wrap { display: flex; border-radius: 4px; overflow: hidden; }
+    .sensor-row .val { width: 88px; height: 24px; background: #fff; font-size: 11.2px; display: flex; align-items: center; justify-content: center; color: #000; }
+    .sensor-row .swatch { width: 24px; height: 24px; background: #d3d3d3; }
+    .sensor-row .menu { margin-left: auto; width: 24px; height: 24px; border-radius: 4px; border: 0; background: var(--btn); color: #fff; display: inline-flex; align-items: center; justify-content: center; }
+    .sensor-row .stats { display: none; padding: 0 8px 6px 34px; font-size: 12px; color: var(--text-mid); gap: 14px; }
+    .sensor-row.show-stats .stats { display: flex; }
 
-    /* ── Main ── */
-    main {
-      max-width: 1280px;
-      margin: 0 auto;
-      padding: 24px;
-      display: flex; flex-direction: column; gap: 20px;
-    }
-
-    .section-label {
-      font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
-      text-transform: uppercase; color: var(--text-dim); margin-bottom: 10px;
-    }
-
-    /* ── Device grid ── */
-    .device-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-      gap: 12px;
-    }
-
-    .device-card {
-      background: var(--card);
-      border: 1px solid var(--card-border);
-      border-radius: var(--radius);
-      padding: 14px 16px;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .device-card::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 2px;
-      background: var(--text-dim);
-    }
-
-    .device-card.live::before    { background: var(--teal); }
-    .device-card.stale::before   { background: var(--amber); }
-    .device-card.offline::before { background: var(--red); }
-
-    .device-header {
-      display: flex; align-items: center;
-      justify-content: space-between;
-      margin-bottom: 6px;
-    }
-
-    .device-name { font-family: var(--font-mono); font-size: 13px; font-weight: 600; }
-
-    .device-header-right { display: flex; align-items: center; gap: 8px; }
-
-    .status-dot {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      background: var(--text-dim);
-    }
-    .device-card.live   .status-dot { background: var(--teal); box-shadow: 0 0 6px var(--teal); }
-    .device-card.stale  .status-dot { background: var(--amber); }
-    .device-card.offline .status-dot { background: var(--red); }
-
-    .edit-btn {
-      background: none;
-      border: none;
-      color: var(--text-dim);
-      cursor: pointer;
-      padding: 2px;
-      display: flex; align-items: center;
-      transition: color 0.15s;
-      line-height: 1;
-    }
-    .edit-btn:hover { color: var(--teal); }
-
-    .device-meta {
-      display: flex; align-items: center; gap: 6px;
-      margin-bottom: 10px;
-      min-height: 18px;
-    }
-
-    .device-location {
-      font-size: 11px; color: var(--text-mid);
-      flex: 1;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
-
-    .type-badge {
-      font-size: 9px; font-weight: 700; letter-spacing: 0.06em;
-      text-transform: uppercase;
-      padding: 2px 6px;
-      border-radius: 4px;
-      flex-shrink: 0;
-    }
-    .type-badge.enclosed { background: var(--teal-dim); color: var(--teal); border: 1px solid var(--teal); }
-    .type-badge.ambient  { background: rgba(245,158,11,0.12); color: var(--amber); border: 1px solid var(--amber); }
-
-    .readings-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 8px;
-    }
-
-    .reading { display: flex; flex-direction: column; gap: 2px; }
-    .reading-label { font-size: 10px; color: var(--text-dim); letter-spacing: 0.04em; }
-    .reading-value { font-family: var(--font-mono); font-size: 15px; font-weight: 600; }
-    .reading-unit  { font-size: 10px; color: var(--text-mid); font-weight: 400; }
-
-    .device-footer { margin-top: 10px; font-size: 10px; color: var(--text-dim); font-family: var(--font-mono); }
-
-    /* ── Weather ── */
-    .weather-strip {
-      background: var(--card);
-      border: 1px solid var(--card-border);
-      border-radius: var(--radius);
-      padding: 12px 16px;
-      display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
-    }
-    .weather-label { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dim); }
-    .weather-item  { display: flex; align-items: baseline; gap: 4px; }
-    .weather-item span:first-child { font-size: 11px; color: var(--text-mid); }
-    .weather-item strong { font-family: var(--font-mono); font-size: 14px; }
-    .weather-item em { font-size: 10px; font-style: normal; color: var(--text-dim); }
-
-    /* ── Chart ── */
-    .chart-card {
-      background: var(--card);
-      border: 1px solid var(--card-border);
-      border-radius: var(--radius);
-      padding: 20px;
-    }
-
-    .chart-controls {
-      display: flex; align-items: center; gap: 12px;
-      margin-bottom: 16px; flex-wrap: wrap;
-    }
-    .chart-controls label { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-mid); }
-    .chart-wrapper { position: relative; height: 320px; }
-
-    /* ── Modal ── */
-    .modal-overlay {
-      display: none;
-      position: fixed; inset: 0;
-      background: rgba(0,0,0,0.6);
-      z-index: 200;
-      align-items: center; justify-content: center;
-    }
-    .modal-overlay.open { display: flex; }
-
-    .modal {
-      background: var(--navy-mid);
-      border: 1px solid var(--rule);
-      border-radius: 12px;
-      padding: 24px;
-      width: 320px;
-      max-width: calc(100vw - 32px);
-    }
-
-    .modal h3 {
-      font-size: 14px; font-weight: 600;
-      margin-bottom: 16px;
-      display: flex; align-items: center; gap: 8px;
-    }
-
-    .modal h3 .modal-device { font-family: var(--font-mono); color: var(--teal); }
-
-    .form-group { margin-bottom: 14px; }
-    .form-group label { display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-mid); margin-bottom: 6px; }
-
-    .form-group input, .form-group select {
-      width: 100%;
-      background: var(--navy-light);
-      border: 1px solid var(--rule);
-      color: var(--text);
-      padding: 8px 10px;
-      border-radius: var(--radius);
-      font-size: 13px;
-    }
-    .form-group input:focus, .form-group select:focus { border-color: var(--teal); outline: none; }
-
-    .modal-actions { display: flex; gap: 8px; margin-top: 20px; }
-
-    .btn-primary {
-      flex: 1;
-      background: var(--teal);
-      border: none; color: var(--navy);
-      padding: 8px 16px;
-      border-radius: var(--radius);
-      font-size: 13px; font-weight: 600;
-      cursor: pointer;
-    }
-    .btn-primary:hover { opacity: 0.9; }
-
-    .btn-secondary {
-      background: none;
-      border: 1px solid var(--rule);
-      color: var(--text-mid);
-      padding: 8px 16px;
-      border-radius: var(--radius);
-      font-size: 13px;
-      cursor: pointer;
-    }
-    .btn-secondary:hover { border-color: var(--text-mid); }
-
-    .save-status { font-size: 11px; color: var(--teal); margin-top: 8px; min-height: 16px; text-align: center; }
-
-    /* ── Empty ── */
-    .empty {
-      display: flex; align-items: center; justify-content: center;
-      height: 120px; color: var(--text-dim); font-size: 13px;
-      border: 1px dashed var(--rule); border-radius: var(--radius);
-      grid-column: 1/-1;
-    }
-
-    /* ── Responsive ── */
-    @media (max-width: 600px) {
-      main { padding: 16px; gap: 16px; }
-      header { padding: 0 16px; }
-      .job-bar { padding: 10px 16px; }
-      .device-grid { grid-template-columns: 1fr 1fr; }
-    }
-    @media (max-width: 400px) {
-      .device-grid { grid-template-columns: 1fr; }
+    @media (max-width: 900px) {
+      .chart-view { flex-direction: column; }
+      .sidebar { width: 100%; }
+      .chart-box { flex: none; height: 440px; }
+      .nodes { grid-template-columns: 1fr; }
     }
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
 <body>
 
-<header>
-  <div class="logo">
-    <div class="logo-mark">DC</div>
-    <div>
-      <div class="logo-text">Disaster Care Capital</div>
-      <div class="logo-sub">Environmental Monitor</div>
-    </div>
-  </div>
-  <div class="header-right">
-    <span class="last-updated" id="lastUpdated">—</span>
-    <button class="refresh-btn" id="refreshBtn" onclick="loadAll()">
-      <svg class="spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-      Refresh
-    </button>
-  </div>
-    <button onclick="signOut()" style="background:none;border:1px solid var(--rule);color:var(--text-dim);padding:6px 12px;border-radius:var(--radius);font-size:12px;cursor:pointer;" onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='var(--rule)';this.style.color='var(--text-dim)'">Sign out</button>
-</header>
-
-<div class="job-bar">
-  <a href="index.html" style="color:var(--text-mid);text-decoration:none;font-size:12px;display:flex;align-items:center;gap:4px;">
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
-    All jobs
+<nav class="nav">
+  <a class="brand" href="index.html">
+    <svg width="26" height="32" viewBox="0 0 26 32"><path d="M13 1C13 1 2 13.5 2 20.5a11 11 0 0 0 22 0C24 13.5 13 1 13 1z" fill="#bccf00"/><path d="M8 21a5 5 0 0 0 5 5" stroke="#333" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+    <div><div class="brand-name">DCC</div><div class="brand-sub">Environmental Monitor</div></div>
   </a>
-  <span style="color:var(--rule)">|</span>
-  <span id="jobTitle" style="font-weight:600;font-size:14px"></span>
-  <span class="job-meta" id="jobMeta"></span>
-  <button onclick="archiveJob()" style="margin-left:auto;background:none;border:1px solid var(--rule);color:var(--text-mid);padding:5px 12px;border-radius:var(--radius);font-size:12px;cursor:pointer;" onmouseover="this.style.borderColor='var(--amber)';this.style.color='var(--amber)'" onmouseout="this.style.borderColor='var(--rule)';this.style.color='var(--text-mid)'">Archive job</button>
+  <ul class="nav-links">
+    <li><a class="selected" href="index.html"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h2v16h16v2H3V3zm4 10h3v5H7v-5zm5-5h3v10h-3V8zm5 3h3v7h-3v-7z"/></svg><span class="label">Dashboard</span></a></li>
+    <li><button onclick="signOut()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg><span class="label">Logout</span></button></li>
+  </ul>
+</nav>
+
+<div class="submenu">
+  <a href="index.html">List view</a>
+  <a href="index.html?view=archived">Archive</a>
 </div>
 
-<main>
-  <section>
-    <div class="section-label">Devices</div>
-    <div class="device-grid" id="deviceGrid">
-      <div class="empty">Loading devices...</div>
-    </div>
-  </section>
+<div class="page">
+  <div class="panel">
+    <div class="tabs"><span class="tab">Chart view</span></div>
+    <div class="tab-body">
 
-  <section>
-    <div class="section-label">Readings</div>
-    <div class="chart-card">
-      <div class="chart-controls">
-        <label for="metricSelect">Metric</label>
-        <select id="metricSelect" onchange="updateChart()">
-          <option value="temperature">Temperature (°C)</option>
-          <option value="humidity">Humidity (%)</option>
-          <option value="water_content">Water Content (g/m³)</option>
-          <option value="gpk">Moisture Ratio GPK (g/kg)</option>
-          <option value="dwt">Dew Point (°C)</option>
-          <option value="pdv">Sat. Vapour Pressure (mbar)</option>
-        </select>
-        <label for="rangeSelect">Range</label>
-        <select id="rangeSelect" onchange="updateChart()">
-          <option value="0">All data</option>
-          <option value="24">Last 24 hours</option>
-          <option value="48">Last 48 hours</option>
-          <option value="168">Last 7 days</option>
-          <option value="336">Last 14 days</option>
-          <option value="720">Last 30 days</option>
-        </select>
-        <button id="weatherToggle" onclick="toggleWeather()" style="
-          background:var(--teal-dim);border:1px solid var(--teal);color:var(--teal);
-          padding:6px 12px;border-radius:var(--radius);font-size:12px;font-weight:600;
-          cursor:pointer;margin-left:auto;transition:background 0.15s;
-        ">⛅ Weather on</button>
+      <div class="title-row">
+        <a class="round-btn" href="index.html" title="All jobs">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        </a>
+        <div>
+          <h1 id="jobTitle">Loading…</h1>
+          <div class="sub" id="jobMeta"></div>
+        </div>
+        <div class="title-right">
+          <span class="updated" id="lastUpdated"></span>
+          <button class="icon-btn" id="refreshBtn" onclick="loadAll()" title="Refresh">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6"/></svg>
+          </button>
+          <button class="icon-btn" onclick="toggleGear(event)" title="Job settings">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.3 7.3 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.3 7.3 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1c.5.4 1.1.7 1.7 1l.4 2.6h4l.4-2.6c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.5-2.3-1.6zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg>
+          </button>
+          <div class="gear-menu" id="gearMenu">
+            <button onclick="archiveJob()">Archive job</button>
+          </div>
+        </div>
       </div>
-      <div class="chart-wrapper">
-        <canvas id="chart"></canvas>
+
+      <div class="chart-view">
+        <div class="chart-box">
+          <canvas id="chart"></canvas>
+          <div class="no-series" id="noSeries" style="display:none">Tick a reading on a sensor below to chart it</div>
+        </div>
+
+        <aside class="sidebar">
+          <div class="field">
+            <label for="rangeSelect">Period</label>
+            <select id="rangeSelect" onchange="clearDates(); updateChart()">
+              <option value="0">All data</option>
+              <option value="24">Last 24 hours</option>
+              <option value="48">Last 48 hours</option>
+              <option value="168" selected>Last 7 days</option>
+              <option value="336">Last 14 days</option>
+              <option value="720">Last 30 days</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="startDate">Start Date</label>
+            <input type="date" id="startDate" class="filled-grey" onchange="updateChart()">
+          </div>
+          <div class="field">
+            <label for="endDate">End Date</label>
+            <input type="date" id="endDate" class="filled-grey" onchange="updateChart()">
+          </div>
+          <hr>
+          <button class="btn" onclick="loadAllData()">Load all data</button>
+
+          <button class="btn has-caret" onclick="toggleCollapse(this, 'axisPanel')">Configure Chart
+            <svg class="caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="collapse" id="axisPanel">
+            <div class="axis-grid">
+              <span></span><span>Min</span><span>Max</span>
+              <span id="leftAxisLabel">Left</span><input id="yMin" type="number" step="any" oninput="updateChart()"><input id="yMax" type="number" step="any" oninput="updateChart()">
+              <span id="rightAxisLabel">Right</span><input id="y1Min" type="number" step="any" oninput="updateChart()"><input id="y1Max" type="number" step="any" oninput="updateChart()">
+            </div>
+          </div>
+
+          <button class="btn has-caret" onclick="toggleCollapse(this, 'typePanel')">Select/Deselect Type
+            <svg class="caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div class="collapse" id="typePanel">
+            <div class="type-list" id="typeList"></div>
+          </div>
+          <div class="side-msg" id="sideMsg"></div>
+        </aside>
       </div>
+
+      <div class="nodes" id="nodes"><div class="empty">Loading sensors…</div></div>
     </div>
-  </section>
-</main>
+  </div>
+</div>
+
+<div class="footer">© Disaster Care Capital Ltd <span id="year"></span></div>
 
 <!-- Edit device modal -->
 <div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
   <div class="modal">
-    <h3>Edit device <span class="modal-device" id="modalDeviceName"></span></h3>
-    <div class="form-group">
-      <label for="inputLocation">Location</label>
-      <input type="text" id="inputLocation" placeholder="e.g. Living room">
+    <div class="modal-head"><span>Edit sensor <b id="modalDeviceName"></b></span><button onclick="closeModal()">×</button></div>
+    <div class="modal-body">
+      <div class="field">
+        <label for="inputLocation">Location</label>
+        <input type="text" id="inputLocation" placeholder="e.g. Living room">
+      </div>
+      <div class="field">
+        <label for="inputType">Type</label>
+        <select id="inputType">
+          <option value="enclosed">Enclosed</option>
+          <option value="ambient">Ambient</option>
+        </select>
+      </div>
+      <div class="form-msg" id="saveStatus"></div>
     </div>
-    <div class="form-group">
-      <label for="inputType">Type</label>
-      <select id="inputType">
-        <option value="enclosed">Enclosed</option>
-        <option value="ambient">Ambient</option>
-      </select>
-    </div>
-    <div class="save-status" id="saveStatus"></div>
-    <div class="modal-actions">
-      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
-      <button class="btn-primary" onclick="saveDeviceSettings()">Save</button>
+    <div class="modal-foot">
+      <button class="btn light auto" onclick="closeModal()">Cancel</button>
+      <button class="btn green auto" onclick="saveDeviceSettings()">Save</button>
     </div>
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
   const SUPABASE_URL = 'https://riidphmmavlmxpdbmsll.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_watyoR-O1_biXRiLc3iW_g_COoGPeCr';
+  const sb_auth = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  const COLOURS = [
-    '#00b4a0','#f59e0b','#60a5fa','#f472b6',
-    '#a78bfa','#34d399','#fb923c','#e879f9'
-  ];
+  // Series colours, one per sensor (Simplify-style greens, blues, yellows)
+  const PALETTE = ['#5F6EAE', '#4BA91F', '#D4C400', '#FFA500', '#2E9CCA', '#48B704', '#C0392B', '#8E44AD', '#16A085', '#E67E22'];
+  const WEATHER = 'weather';
 
-  let allReadings   = [];
-  let deviceSettings = {}; // device_name -> { location, type }
-  let chart = null;
+  // Reading types, in Simplify's order and with Simplify's codes
+  const TYPES = {
+    DWT: { name: 'Dew point',                  unit: '°C',   dp: 1, field: 'dwt' },
+    HUM: { name: 'Relative humidity',          unit: '%rH',  dp: 1, field: 'humidity',      wfield: 'weather_humidity' },
+    PDV: { name: 'Saturation vapour pressure', unit: 'mBar', dp: 2, field: 'pdv' },
+    TMP: { name: 'Temperature',                unit: '°C',   dp: 1, field: 'temperature',   wfield: 'weather_temp' },
+    WCT: { name: 'Water content',              unit: 'g/m³', dp: 2, field: 'water_content' },
+    GPK: { name: 'Moisture ratio',             unit: 'g/kg', dp: 2, field: 'gpk' },
+  };
+  const CODES = Object.keys(TYPES);
+
+  let job = null;
+  let allReadings = [];
+  let weatherRows = [];
+  let deviceSettings = {};
   let devices = [];
+  let sources = [];           // devices + weather
+  let selection = [];         // ordered list of "source|CODE"
+  let statsOpen = new Set();
+  let chart = null;
   let editingDevice = null;
-  let showWeather = true;
 
-  // ── Supabase ───────────────────────────────────────────────
+  const jobId = new URLSearchParams(location.search).get('job');
+  if (!jobId) location.href = 'index.html';
+  document.getElementById('year').textContent = new Date().getFullYear();
+
+  // ── Supabase ───────────────────────────────────────────
   async function sb(path, opts = {}) {
     const { data: { session } } = await sb_auth.auth.getSession();
-    const token = session?.access_token || SUPABASE_KEY;
     const headers = {
-      'apikey': SUPABASE_KEY,
-      'Authorization': `Bearer ${token}`,
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${session?.access_token || SUPABASE_KEY}`,
       'Content-Type': 'application/json',
     };
-    if (opts.prefer) headers['Prefer'] = opts.prefer;
+    if (opts.prefer) headers.Prefer = opts.prefer;
     const resp = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-      headers,
-      method: opts.method || 'GET',
+      headers, method: opts.method || 'GET',
       body: opts.body ? JSON.stringify(opts.body) : undefined,
     });
-    if (!resp.ok) {
-      const txt = await resp.text();
-      throw new Error(`Supabase ${resp.status}: ${txt}`);
-    }
+    if (!resp.ok) throw new Error(`Supabase ${resp.status}: ${await resp.text()}`);
     const text = await resp.text();
-    if (!text) return null;
-    return JSON.parse(text);
+    return text ? JSON.parse(text) : null;
   }
 
-  // ── Load everything ────────────────────────────────────────
-  async function loadAll() {
-    setLoading(true);
-    try {
-      // Get job ID from URL
-      const params = new URLSearchParams(window.location.search);
-      const jobId = params.get('job');
-      if (!jobId) {
-        window.location.href = 'index.html';
-        return;
-      }
-
-      const jobs = await sb(`jobs?select=*&id=eq.${jobId}`);
-      const job = jobs[0];
-      if (!job) {
-        document.getElementById('deviceGrid').innerHTML = '<div class="empty">Job not found</div>';
-        setLoading(false);
-        return;
-      }
-
-      document.getElementById('jobTitle').textContent = job.site_name || 'Job ' + jobId;
-      document.getElementById('jobMeta').textContent =
-        `${job.postcode || ''}${job.job_start_date ? '  ·  Started ' + formatDate(job.job_start_date) : ''}  ·  Kit ${job.device_kit_name}`;
-
-      const [readings, settings] = await Promise.all([
-        sb(`readings?select=*&job_id=eq.${jobId}&order=recorded_at.asc`),
-        sb(`job_devices?select=*&job_id=eq.${jobId}`)
-      ]);
-
-      allReadings = readings;
-      deviceSettings = Object.fromEntries(settings.map(s => [s.device_name, s]));
-      devices = [...new Set(allReadings.map(r => r.device_name))].sort();
-
-      renderDeviceCards();
-      renderWeather();
-      updateChart();
-
-      document.getElementById('lastUpdated').textContent =
-        'Updated ' + new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-
-    } catch(e) {
-      console.error(e);
-      document.getElementById('deviceGrid').innerHTML =
-        `<div class="empty">Error loading data — check console</div>`;
+  // PostgREST caps each response (1000 rows by default), so page through everything
+  async function sbAll(path) {
+    const out = [];
+    for (let offset = 0; ; ) {
+      const page = await sb(`${path}&limit=1000&offset=${offset}`);
+      if (!page || !page.length) break;
+      out.push(...page);
+      offset += page.length;
     }
-    setLoading(false);
+    return out;
   }
 
-  // ── Weather toggle ─────────────────────────────────────────
-  function toggleWeather() {
-    showWeather = !showWeather;
-    const btn = document.getElementById('weatherToggle');
-    btn.textContent = showWeather ? '⛅ Weather on' : '⛅ Weather off';
-    btn.style.background = showWeather ? 'var(--teal-dim)' : 'none';
-    btn.style.color = showWeather ? 'var(--teal)' : 'var(--text-dim)';
-    btn.style.borderColor = showWeather ? 'var(--teal)' : 'var(--rule)';
-    const weatherCard = document.getElementById('weatherCard');
-    if (weatherCard) weatherCard.style.display = showWeather ? '' : 'none';
-    updateChart();
-  }
-
-  // ── Archive job ────────────────────────────────────────────
-  async function archiveJob() {
-    if (!confirm('Archive this job? It will be moved to the archived tab and no longer receive new readings.')) return;
-    const params = new URLSearchParams(window.location.search);
-    const jobId = params.get('job');
-    try {
-      await sb(`jobs?id=eq.${jobId}`, {
-        method: 'PATCH',
-        prefer: 'return=minimal',
-        body: { active: false, job_end_date: new Date().toISOString().split('T')[0] }
-      });
-      window.location.href = 'index.html';
-    } catch(e) {
-      alert('Error archiving job: ' + e.message);
-    }
-  }
-
-  // ── Device cards ───────────────────────────────────────────
-  // ── Metric config ──────────────────────────────────────────
-  const METRICS = {
-    temperature:   { unit: '°C',    dp: 1, weather: 'weather_temp' },
-    humidity:      { unit: '%',     dp: 0, weather: 'weather_humidity' },
-    water_content: { unit: ' g/m³', dp: 2, weather: 'wct' },
-    gpk:           { unit: ' g/kg', dp: 2, weather: 'gpk' },
-    dwt:           { unit: '°C',    dp: 1, weather: 'dwt' },
-    pdv:           { unit: ' mbar', dp: 2, weather: 'pdv' },
-  };
-
-  // Same formulas as the Supabase generated columns (Magnus, Bolton constants)
+  // ── Psychrometrics (same formulas as the Supabase generated columns) ──
   function psychro(T, RH, P = 1013.25) {
     if (T == null || RH == null || RH <= 0 || RH > 100) return {};
     T = Number(T); RH = Number(RH);
-    const x  = 17.67 * T / (T + 243.5);
-    const es = 6.112 * Math.exp(x);
-    const e  = es * RH / 100;
-    const g  = Math.log(RH / 100) + x;
-    return {
-      pdv: es,
-      dwt: 243.5 * g / (17.67 - g),
-      wct: 216.7 * e / (T + 273.15),
-      gpk: 621.97 * e / (P - e),
-    };
+    const x = 17.67 * T / (T + 243.5), es = 6.112 * Math.exp(x), e = es * RH / 100, g = Math.log(RH / 100) + x;
+    return { pdv: es, dwt: 243.5 * g / (17.67 - g), water_content: 216.7 * e / (T + 273.15), gpk: 621.97 * e / (P - e) };
   }
 
-  const fmt = (v, dp) => v != null && !isNaN(v) ? Number(v).toFixed(dp) : '—';
+  function valueOf(row, code, src) {
+    if (!row) return null;
+    const t = TYPES[code];
+    let v;
+    if (src === WEATHER) v = t.wfield ? row[t.wfield] : psychro(row.weather_temp, row.weather_humidity)[t.field];
+    else v = row[t.field];
+    return v == null || isNaN(v) ? null : Number(v);
+  }
 
-  function renderDeviceCards() {
-    const grid = document.getElementById('deviceGrid');
-    if (devices.length === 0) {
-      grid.innerHTML = '<div class="empty">No devices found for this job</div>';
-      return;
+  const fmt = (v, dp) => v == null ? '—' : v.toFixed(dp);
+  const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  const colourOf = src => src === WEATHER ? '#777777' : PALETTE[devices.indexOf(src) % PALETTE.length];
+  const rowsOf = src => src === WEATHER ? weatherRows : allReadings.filter(r => r.device_name === src);
+
+  // ── Load ───────────────────────────────────────────────
+  async function loadAll() {
+    setLoading(true);
+    try {
+      const jobs = await sb(`jobs?select=*&id=eq.${encodeURIComponent(jobId)}`);
+      job = jobs[0];
+      if (!job) { document.getElementById('nodes').innerHTML = '<div class="empty">Job not found</div>'; return; }
+
+      document.title = `${job.site_name || 'Job ' + jobId} · DCC Environmental Monitor`;
+      document.getElementById('jobTitle').textContent = `${job.site_name || 'Unnamed'} (Job ${job.id})`;
+      const bits = [];
+      if (job.job_start_date) bits.push('Started on ' + ukDate(job.job_start_date));
+      if (job.postcode) bits.push(job.postcode);
+      if (job.device_kit_name) bits.push(/^kit\b/i.test(job.device_kit_name) ? job.device_kit_name : 'Kit ' + job.device_kit_name);
+      document.getElementById('jobMeta').textContent = bits.join('  ·  ');
+
+      const [readings, settings] = await Promise.all([
+        sbAll(`readings?select=*&job_id=eq.${encodeURIComponent(jobId)}&order=recorded_at.asc`),
+        sb(`job_devices?select=*&job_id=eq.${encodeURIComponent(jobId)}`),
+      ]);
+      allReadings = readings;
+      deviceSettings = Object.fromEntries((settings || []).map(s => [s.device_name, s]));
+      devices = [...new Set(allReadings.map(r => r.device_name))].sort();
+
+      // One weather row per timestamp
+      const seen = new Set();
+      weatherRows = allReadings.filter(r => r.weather_temp != null && !seen.has(r.recorded_at) && seen.add(r.recorded_at));
+      sources = weatherRows.length ? [...devices, WEATHER] : [...devices];
+
+      if (!selection.length) loadSelection();
+      renderTypeList();
+      updateChart();
+      document.getElementById('lastUpdated').textContent =
+        'Updated ' + new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    } catch (e) {
+      console.error(e);
+      document.getElementById('nodes').innerHTML = '<div class="empty">Error loading data. Check the console.</div>';
+    } finally {
+      setLoading(false);
     }
+  }
 
-    const now = new Date();
-    grid.innerHTML = devices.map((name, i) => {
-      const deviceReadings = allReadings.filter(r => r.device_name === name);
-      const latest  = deviceReadings[deviceReadings.length - 1];
-      const lastSeen = latest ? new Date(latest.recorded_at) : null;
-      const ageHours = lastSeen ? (now - lastSeen) / 3600000 : Infinity;
+  // ── Selection (kept in the URL, like Simplify's ?nodes= parameter) ──
+  function loadSelection() {
+    try {
+      const raw = new URLSearchParams(location.search).get('nodes');
+      if (raw) {
+        const obj = JSON.parse(raw);
+        selection = Object.entries(obj).flatMap(([src, codes]) => codes.filter(c => TYPES[c] && sources.includes(src)).map(c => `${src}|${c}`));
+      }
+    } catch (e) { selection = []; }
+    if (!selection.length) selection = devices.map(d => `${d}|HUM`);
+  }
 
-      const statusClass = ageHours < 2 ? 'live' : ageHours < 24 ? 'stale' : 'offline';
-      const statusText  = ageHours < 2 ? 'Live' : ageHours < 24 ? 'Stale' : 'Offline';
+  function saveSelection() {
+    const obj = {};
+    for (const k of selection) { const [src, c] = splitKey(k); (obj[src] ||= []).push(c); }
+    const p = new URLSearchParams(location.search);
+    p.set('nodes', JSON.stringify(obj));
+    history.replaceState(null, '', `${location.pathname}?${p}`);
+  }
 
-      const settings = deviceSettings[name] || {};
-      const location = settings.location || '';
-      const type     = settings.type || 'enclosed';
+  const splitKey = k => { const i = k.lastIndexOf('|'); return [k.slice(0, i), k.slice(i + 1)]; };
+  const selectedTypes = () => [...new Set(selection.map(k => splitKey(k)[1]))];
 
-      const temp = latest?.temperature   != null ? latest.temperature.toFixed(1)   : '—';
-      const hum  = latest?.humidity      != null ? latest.humidity.toFixed(0)       : '—';
-      const wc   = latest?.water_content != null ? latest.water_content.toFixed(2)  : '—';
-      const gpk  = fmt(latest?.gpk, 2);
-      const dwt  = fmt(latest?.dwt, 1);
-      const pdv  = fmt(latest?.pdv, 1);
+  function canAddType(code) {
+    const types = selectedTypes();
+    return types.includes(code) || types.length < 2;
+  }
 
-      const lastSeenStr = lastSeen
-        ? lastSeen.toLocaleString('en-GB', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })
-        : '—';
+  function flash(msg) {
+    const el = document.getElementById('sideMsg');
+    el.textContent = msg;
+    clearTimeout(flash.t);
+    flash.t = setTimeout(() => el.textContent = '', 4000);
+  }
 
-      return `
-        <div class="device-card ${statusClass}">
-          <div class="device-header">
-            <span class="device-name">${name}</span>
-            <div class="device-header-right">
-              <button class="edit-btn" onclick="openModal('${name}')" title="Edit device settings">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                </svg>
-              </button>
-              <span class="status-dot" title="${statusText}"></span>
-            </div>
-          </div>
-          <div class="device-meta">
-            <span class="device-location">${location || statusText}</span>
-            <span class="type-badge ${type}">${type}</span>
-          </div>
-          <div class="readings-grid">
-            <div class="reading">
-              <span class="reading-label">Temp</span>
-              <span class="reading-value">${temp}<span class="reading-unit"> °C</span></span>
-            </div>
-            <div class="reading">
-              <span class="reading-label">RH</span>
-              <span class="reading-value">${hum}<span class="reading-unit"> %</span></span>
-            </div>
-            <div class="reading">
-              <span class="reading-label">WC</span>
-              <span class="reading-value">${wc}<span class="reading-unit"> g/m³</span></span>
-            </div>
-            <div class="reading">
-              <span class="reading-label">GPK</span>
-              <span class="reading-value">${gpk}<span class="reading-unit"> g/kg</span></span>
-            </div>
-            <div class="reading">
-              <span class="reading-label">Dew pt</span>
-              <span class="reading-value">${dwt}<span class="reading-unit"> °C</span></span>
-            </div>
-            <div class="reading">
-              <span class="reading-label">PDV</span>
-              <span class="reading-value">${pdv}<span class="reading-unit"> mbar</span></span>
-            </div>
-          </div>
-          <div class="device-footer">Last seen ${lastSeenStr}</div>
-        </div>`;
+  function toggleSeries(src, code) {
+    const key = `${src}|${code}`;
+    const i = selection.indexOf(key);
+    if (i >= 0) selection.splice(i, 1);
+    else {
+      if (!canAddType(code)) { flash('Two reading types at most (left and right axis). Deselect one first.'); return; }
+      selection.push(key);
+    }
+    saveSelection(); renderTypeList(); updateChart();
+  }
+
+  function toggleType(code) {
+    const keys = sources.map(s => `${s}|${code}`);
+    const anyOn = keys.some(k => selection.includes(k));
+    if (anyOn) selection = selection.filter(k => !keys.includes(k));
+    else {
+      if (!canAddType(code)) { flash('Two reading types at most (left and right axis). Deselect one first.'); return; }
+      for (const k of keys) if (!selection.includes(k)) selection.push(k);
+    }
+    saveSelection(); renderTypeList(); updateChart();
+  }
+
+  function renderTypeList() {
+    document.getElementById('typeList').innerHTML = CODES.map(c => {
+      const keys = sources.map(s => `${s}|${c}`);
+      const on = keys.some(k => selection.includes(k));
+      return `<div class="type-item" onclick="toggleType('${c}')" title="${TYPES[c].name}">
+        <span class="cb ${on ? 'on' : ''}"></span>${c}</div>`;
     }).join('');
   }
 
-  // ── Weather card ───────────────────────────────────────────
-  function renderWeather() {
-    const grid = document.getElementById('deviceGrid');
-    // Remove existing weather card if present
-    const existing = document.getElementById('weatherCard');
-    if (existing) existing.remove();
+  // ── Period filter ──────────────────────────────────────
+  function clearDates() { document.getElementById('startDate').value = ''; document.getElementById('endDate').value = ''; }
+  function loadAllData() { clearDates(); document.getElementById('rangeSelect').value = '0'; updateChart(); }
 
-    // Find latest row with weather data
-    const latest = [...allReadings].reverse().find(r => r.weather_temp != null);
-    if (!latest) return;
-
-    const lastSeen = new Date(latest.recorded_at);
-    const lastSeenStr = lastSeen.toLocaleString('en-GB', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
-    const temp = latest.weather_temp != null ? latest.weather_temp.toFixed(1) : '—';
-    const hum  = latest.weather_humidity != null ? latest.weather_humidity.toFixed(0) : '—';
-    const wp   = psychro(latest.weather_temp, latest.weather_humidity);
-
-    const card = document.createElement('div');
-    card.id = 'weatherCard';
-    card.className = 'device-card live';
-    card.style.borderStyle = 'dashed';
-    card.innerHTML = `
-      <div class="device-header">
-        <span class="device-name">weather</span>
-        <div class="device-header-right">
-          <span class="status-dot" title="External"></span>
-        </div>
-      </div>
-      <div class="device-meta">
-        <span class="device-location">External conditions</span>
-        <span class="type-badge ambient">ambient</span>
-      </div>
-      <div class="readings-grid">
-        <div class="reading">
-          <span class="reading-label">Temp</span>
-          <span class="reading-value">${temp}<span class="reading-unit"> °C</span></span>
-        </div>
-        <div class="reading">
-          <span class="reading-label">RH</span>
-          <span class="reading-value">${hum}<span class="reading-unit"> %</span></span>
-        </div>
-        <div class="reading">
-          <span class="reading-label">WC</span>
-          <span class="reading-value">${fmt(wp.wct, 2)}<span class="reading-unit"> g/m³</span></span>
-        </div>
-        <div class="reading">
-          <span class="reading-label">GPK</span>
-          <span class="reading-value">${fmt(wp.gpk, 2)}<span class="reading-unit"> g/kg</span></span>
-        </div>
-        <div class="reading">
-          <span class="reading-label">Dew pt</span>
-          <span class="reading-value">${fmt(wp.dwt, 1)}<span class="reading-unit"> °C</span></span>
-        </div>
-      </div>
-      <div class="device-footer">Last seen ${lastSeenStr}</div>`;
-
-    grid.appendChild(card);
+  function periodFilter() {
+    const s = document.getElementById('startDate').value;
+    const e = document.getElementById('endDate').value;
+    if (s || e) {
+      const from = s ? new Date(s + 'T00:00:00') : null;
+      const to   = e ? new Date(e + 'T23:59:59') : null;
+      return r => { const d = new Date(r.recorded_at); return (!from || d >= from) && (!to || d <= to); };
+    }
+    const hours = parseInt(document.getElementById('rangeSelect').value) || 0;
+    if (!hours) return () => true;
+    const cutoff = Date.now() - hours * 3600000;
+    return r => new Date(r.recorded_at).getTime() >= cutoff;
   }
 
-  // ── Chart ──────────────────────────────────────────────────
+  // ── Node cards ─────────────────────────────────────────
+  function renderNodes() {
+    const el = document.getElementById('nodes');
+    if (!sources.length) { el.innerHTML = '<div class="empty">No readings for this job yet</div>'; return; }
+    const inPeriod = periodFilter();
+    el.innerHTML = sources.map(src => nodeCard(src, inPeriod)).join('');
+  }
+
+  function nodeCard(src, inPeriod) {
+    const isW = src === WEATHER;
+    const rows = rowsOf(src);
+    const latest = rows[rows.length - 1];
+    const seen = latest ? new Date(latest.recorded_at) : null;
+    const age = seen ? (Date.now() - seen) / 3600000 : Infinity;
+    const cls = isW ? 'external' : age < 2 ? '' : age < 24 ? 'stale' : 'offline';
+    const label = isW ? 'EXTERNAL' : age < 2 ? 'ACTIVE' : age < 24 ? 'STALE' : 'OFFLINE';
+    const bars = isW ? 3 : age < 2 ? 3 : age < 24 ? 2 : 1;
+    const s = deviceSettings[src] || {};
+    const periodRows = rows.filter(inPeriod);
+    const codes = isW ? ['DWT', 'HUM', 'TMP', 'WCT', 'GPK'] : CODES;
+
+    const info = isW
+      ? `<div class="info-row"><div class="info-label">Name</div><div class="info-val">Weather</div></div>
+         <div class="info-row"><div class="info-label">Type</div><div class="info-val">Outside, from forecast data</div></div>`
+      : `<div class="info-row"><div class="info-label">Name</div><div class="info-val">${esc(src)}
+           <button class="pen" data-dev="${esc(src)}" onclick="openModal(this.dataset.dev)" title="Edit sensor">
+             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.3V21h3.7l11-11-3.7-3.7-11 11zM20.7 7a1 1 0 0 0 0-1.4l-2.3-2.3a1 1 0 0 0-1.4 0l-1.8 1.8 3.7 3.7L20.7 7z"/></svg>
+           </button></div></div>
+         <div class="info-row"><div class="info-label">Location</div><div class="info-val">${esc(s.location) || '—'}</div></div>
+         <div class="info-row"><div class="info-label">Type</div><div class="info-val">${s.type === 'ambient' ? 'Ambient' : 'Enclosed'}</div></div>`;
+
+    const rowsHtml = codes.map(code => {
+      const key = `${src}|${code}`;
+      const on = selection.includes(key);
+      const t = TYPES[code];
+      const vals = periodRows.map(r => valueOf(r, code, src)).filter(v => v != null);
+      const min = vals.length ? Math.min(...vals) : null;
+      const max = vals.length ? Math.max(...vals) : null;
+      const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+      const disabled = !on && !canAddType(code);
+      return `<div class="sensor-row ${on ? 'sel' : ''} ${statsOpen.has(key) ? 'show-stats' : ''}">
+        <div class="row">
+          <span class="cb ${on ? 'on' : ''} ${disabled ? 'disabled' : ''}" data-src="${esc(src)}" data-code="${code}" onclick="toggleSeries(this.dataset.src, this.dataset.code)"></span>
+          <span class="code" title="${t.name}" data-src="${esc(src)}" data-code="${code}" onclick="toggleSeries(this.dataset.src, this.dataset.code)">${code}</span>
+          <span class="val-wrap">
+            <span class="val">${fmt(valueOf(latest, code, src), t.dp)} ${t.unit}</span>
+            <span class="swatch" style="${on ? 'background:' + colourOf(src) : ''}"></span>
+          </span>
+          <button class="menu" data-key="${esc(key)}" onclick="toggleStats(this.dataset.key)" title="Min / avg / max for the period">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="5" width="18" height="2.6" rx="1"/><rect x="3" y="10.7" width="18" height="2.6" rx="1"/><rect x="3" y="16.4" width="18" height="2.6" rx="1"/></svg>
+          </button>
+        </div>
+        <div class="stats"><span>Min ${fmt(min, t.dp)}</span><span>Avg ${fmt(avg, t.dp)}</span><span>Max ${fmt(max, t.dp)}</span><span>${t.unit}</span></div>
+      </div>`;
+    }).join('');
+
+    const seenStr = seen ? seen.toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+
+    return `<div class="node ${cls}">
+      <div class="status-bar">
+        <span class="status-text">${label}</span>
+        <span class="signal"><i class="${bars >= 1 ? 'on' : ''}" style="height:5px"></i><i class="${bars >= 2 ? 'on' : ''}" style="height:10px"></i><i class="${bars >= 3 ? 'on' : ''}" style="height:15px"></i></span>
+      </div>
+      <div class="contents">
+        <div class="info-head">
+          ${info}
+          <div class="info-row"><div class="info-label">Last seen</div><div class="info-val">${seenStr}</div></div>
+        </div>
+        ${rowsHtml}
+      </div>
+    </div>`;
+  }
+
+  function toggleStats(key) {
+    statsOpen.has(key) ? statsOpen.delete(key) : statsOpen.add(key);
+    renderNodes();
+  }
+
+  // ── Chart ──────────────────────────────────────────────
   function updateChart() {
-    const metric    = document.getElementById('metricSelect').value;
-    const hoursBack = parseInt(document.getElementById('rangeSelect').value) || 0;
-    const cutoff    = hoursBack ? new Date(Date.now() - hoursBack * 3600000) : null;
-    const filtered  = cutoff ? allReadings.filter(r => new Date(r.recorded_at) >= cutoff) : allReadings;
+    renderNodes(); // keeps min/avg/max in step with the period
+    const inPeriod = periodFilter();
+    const types = selectedTypes();
+    const axisOf = code => code === types[0] ? 'y' : 'y1';
 
-    const timestamps = [...new Set(filtered.map(r => r.recorded_at))].sort();
-    const labels = timestamps.map(ts =>
-      new Date(ts).toLocaleString('en-GB', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })
-    );
-
-    // Sensor datasets on primary y-axis
-    const datasets = devices.map((name, i) => {
-      const byTs = Object.fromEntries(filtered.filter(r => r.device_name === name).map(r => [r.recorded_at, r]));
-      return {
-        label: name,
-        yAxisID: 'y',
-        data: timestamps.map(ts => { const v = byTs[ts]?.[metric]; return v != null ? parseFloat(Number(v).toFixed(2)) : null; }),
-        borderColor: COLOURS[i % COLOURS.length],
-        backgroundColor: COLOURS[i % COLOURS.length] + '18',
-        borderWidth: 1.5, pointRadius: 2, tension: 0.3, spanGaps: true,
-      };
+    const series = selection.map(key => {
+      const [src, code] = splitKey(key);
+      const byTs = new Map(rowsOf(src).filter(inPeriod).map(r => [r.recorded_at, r]));
+      return { key, src, code, byTs };
     });
 
-    // Weather datasets — shown only when toggled on
-    // Temp/RH come straight from the weather columns; the rest are calculated from them
-    const cfg = METRICS[metric] || { unit: '', dp: 2 };
-    if (showWeather && cfg.weather) {
-      const direct = cfg.weather.startsWith('weather_');
-      datasets.push({
-        label: 'weather ' + (metric === 'water_content' ? 'wc' : metric === 'temperature' ? 'temp' : metric),
-        yAxisID: 'y',
-        data: timestamps.map(ts => {
-          const row = filtered.find(r => r.recorded_at === ts && r.weather_temp != null);
-          if (!row) return null;
-          const v = direct ? row[cfg.weather] : psychro(row.weather_temp, row.weather_humidity)[cfg.weather];
-          return v != null ? parseFloat(Number(v).toFixed(cfg.dp)) : null;
-        }),
-        borderColor: '#94a3b8',
-        backgroundColor: '#94a3b818',
-        borderWidth: 1.5, borderDash: [4, 3],
-        pointRadius: 1, tension: 0.3, spanGaps: true,
-      });
-    }
+    const timestamps = [...new Set(series.flatMap(s => [...s.byTs.keys()]))].sort();
+    const labels = timestamps.map(ts => {
+      const d = new Date(ts);
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    });
 
-    const unit = cfg.unit;
+    const datasets = series.map(s => ({
+      label: `${s.src === WEATHER ? 'Weather' : s.src} ${s.code}`,
+      code: s.code,
+      yAxisID: axisOf(s.code),
+      data: timestamps.map(ts => valueOf(s.byTs.get(ts), s.code, s.src)),
+      borderColor: colourOf(s.src),
+      backgroundColor: colourOf(s.src),
+      borderDash: axisOf(s.code) === 'y1' ? [5, 3] : [],
+      borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 3, tension: 0, spanGaps: true,
+    }));
+
+    document.getElementById('noSeries').style.display = datasets.length ? 'none' : 'flex';
+    document.getElementById('leftAxisLabel').textContent  = types[0] ? `Left (${types[0]})`  : 'Left';
+    document.getElementById('rightAxisLabel').textContent = types[1] ? `Right (${types[1]})` : 'Right';
+
+    const num = id => { const v = document.getElementById(id).value; return v === '' ? undefined : Number(v); };
+    const axisTitle = code => code ? `${code}(${TYPES[code].unit})` : '';
+    const tickFont = { family: 'Arial, sans-serif', size: 11 };
 
     if (chart) chart.destroy();
     chart = new Chart(document.getElementById('chart'), {
       type: 'line',
       data: { labels, datasets },
       options: {
-        responsive: true, maintainAspectRatio: false,
+        responsive: true, maintainAspectRatio: false, animation: false,
         interaction: { mode: 'index', intersect: false },
         plugins: {
-          legend: { labels: { color: '#8ba3b8', usePointStyle: true, pointStyleWidth: 8, font: { size: 11, family: "'JetBrains Mono', monospace" } } },
+          legend: { display: false },
           tooltip: {
-            backgroundColor: '#1e3348', borderColor: '#243a50', borderWidth: 1,
-            titleColor: '#8ba3b8', bodyColor: '#e2eaf2',
+            backgroundColor: '#fff', borderColor: '#ccc', borderWidth: 1,
+            titleColor: '#212529', bodyColor: '#212529', titleFont: tickFont, bodyFont: tickFont,
+            boxPadding: 4, usePointStyle: true,
             callbacks: {
               label: ctx => {
-                const v = ctx.parsed.y;
-                if (v == null) return `${ctx.dataset.label}: —`;
-                const u = ctx.dataset.label === 'rainfall (mm)' ? ' mm' : unit;
-                return `${ctx.dataset.label}: ${v.toFixed(cfg.dp)}${u}`;
-              }
-            }
-          }
+                const v = ctx.parsed.y, t = TYPES[ctx.dataset.code];
+                return ` ${ctx.dataset.label}: ${v == null ? '—' : v.toFixed(t.dp) + ' ' + t.unit}`;
+              },
+            },
+          },
         },
         scales: {
-          x: { ticks: { color: '#4d6880', maxTicksLimit: 10, maxRotation: 30, font: { size: 10 } }, grid: { color: '#1e3348' } },
-          y: {
-            position: 'left',
-            ticks: { color: '#4d6880', font: { size: 11 } },
-            grid: { color: '#1e3348' },
-            title: { display: true, text: unit, color: '#4d6880', font: { size: 10 } }
+          x: {
+            ticks: { color: '#000', font: tickFont, maxRotation: 60, minRotation: 60, autoSkip: true, maxTicksLimit: innerWidth < 700 ? 6 : 12 },
+            grid: { color: 'rgba(0,0,0,0.07)' }, border: { color: '#000' },
           },
-
-        }
-      }
+          y: {
+            display: !!types[0], position: 'left', min: num('yMin'), max: num('yMax'),
+            ticks: { color: '#000', font: tickFont },
+            grid: { color: 'rgba(0,0,0,0.07)' }, border: { color: '#000' },
+            title: { display: true, text: axisTitle(types[0]), color: '#000', font: { ...tickFont, weight: 'bold' } },
+          },
+          y1: {
+            display: !!types[1], position: 'right', min: num('y1Min'), max: num('y1Max'),
+            ticks: { color: '#000', font: tickFont },
+            grid: { drawOnChartArea: false }, border: { color: '#000' },
+            title: { display: true, text: axisTitle(types[1]), color: '#000', font: { ...tickFont, weight: 'bold' } },
+          },
+        },
+      },
     });
   }
 
-  // ── Modal ──────────────────────────────────────────────────
+  // ── Sidebar / menus ────────────────────────────────────
+  function toggleCollapse(btn, id) {
+    btn.classList.toggle('open');
+    document.getElementById(id).classList.toggle('open');
+  }
+  function toggleGear(e) { e.stopPropagation(); document.getElementById('gearMenu').classList.toggle('open'); }
+  document.addEventListener('click', () => document.getElementById('gearMenu').classList.remove('open'));
+
+  async function archiveJob() {
+    if (!confirm('Archive this job? It will move to the Archive list and stop receiving new readings.')) return;
+    try {
+      await sb(`jobs?id=eq.${encodeURIComponent(jobId)}`, {
+        method: 'PATCH', prefer: 'return=minimal',
+        body: { active: false, job_end_date: new Date().toISOString().split('T')[0] },
+      });
+      location.href = 'index.html';
+    } catch (e) { alert('Error archiving job: ' + e.message); }
+  }
+
+  // ── Edit sensor modal ──────────────────────────────────
   function openModal(deviceName) {
     editingDevice = deviceName;
-    const settings = deviceSettings[deviceName] || {};
+    const s = deviceSettings[deviceName] || {};
     document.getElementById('modalDeviceName').textContent = deviceName;
-    document.getElementById('inputLocation').value = settings.location || '';
-    document.getElementById('inputType').value = settings.type || 'enclosed';
-    document.getElementById('saveStatus').textContent = '';
+    document.getElementById('inputLocation').value = s.location || '';
+    document.getElementById('inputType').value = s.type || 'enclosed';
+    const st = document.getElementById('saveStatus'); st.textContent = ''; st.className = 'form-msg';
     document.getElementById('modalOverlay').classList.add('open');
     document.getElementById('inputLocation').focus();
   }
@@ -822,93 +611,48 @@
 
   async function saveDeviceSettings() {
     if (!editingDevice) return;
-    const params = new URLSearchParams(window.location.search);
-    const jobId = params.get('job');
-    const location = document.getElementById('inputLocation').value.trim();
-    const type     = document.getElementById('inputType').value;
-    const status   = document.getElementById('saveStatus');
-
-    status.textContent = 'Saving...';
-    status.style.color = 'var(--text-mid)';
-
+    const location_ = document.getElementById('inputLocation').value.trim();
+    const type = document.getElementById('inputType').value;
+    const st = document.getElementById('saveStatus');
+    st.className = 'form-msg'; st.textContent = 'Saving…';
     try {
-      const jobIdInt = parseInt(jobId);
-      // Check if row already exists
-      const existing = await sb(
-        `job_devices?job_id=eq.${jobIdInt}&device_name=eq.${encodeURIComponent(editingDevice)}&select=id`
-      );
-
-      if (existing && existing.length > 0) {
-        // Update existing row
-        await sb(
-          `job_devices?job_id=eq.${jobIdInt}&device_name=eq.${encodeURIComponent(editingDevice)}`,
-          { method: 'PATCH', prefer: 'return=minimal', body: { location, type } }
-        );
+      const jid = parseInt(jobId);
+      const dev = encodeURIComponent(editingDevice);
+      const existing = await sb(`job_devices?job_id=eq.${jid}&device_name=eq.${dev}&select=id`);
+      if (existing && existing.length) {
+        await sb(`job_devices?job_id=eq.${jid}&device_name=eq.${dev}`, { method: 'PATCH', prefer: 'return=minimal', body: { location: location_, type } });
       } else {
-        // Insert new row
-        await sb('job_devices', {
-          method: 'POST',
-          prefer: 'return=minimal',
-          body: { job_id: jobIdInt, device_name: editingDevice, location, type },
-        });
+        await sb('job_devices', { method: 'POST', prefer: 'return=minimal', body: { job_id: jid, device_name: editingDevice, location: location_, type } });
       }
-
-      // Update local cache
-      deviceSettings[editingDevice] = { ...(deviceSettings[editingDevice] || {}), location, type };
-
-      status.textContent = 'Saved';
-      status.style.color = 'var(--teal)';
-
-      // Update cards without full reload
-      renderDeviceCards();
-
-      setTimeout(() => {
-        document.getElementById('modalOverlay').classList.remove('open');
-        editingDevice = null;
-      }, 600);
-
-    } catch(e) {
+      deviceSettings[editingDevice] = { ...(deviceSettings[editingDevice] || {}), location: location_, type };
+      st.className = 'form-msg ok'; st.textContent = 'Saved';
+      renderNodes();
+      setTimeout(() => closeModal(), 600);
+    } catch (e) {
       console.error(e);
-      status.textContent = 'Error saving — try again';
-      status.style.color = 'var(--red)';
+      st.className = 'form-msg error'; st.textContent = 'Error saving. Try again.';
     }
   }
 
-  // ── Helpers ────────────────────────────────────────────────
+  // ── Helpers ────────────────────────────────────────────
+  const pad = n => String(n).padStart(2, '0');
+  function ukDate(d) { return new Date(d).toLocaleDateString('en-GB'); }
   function setLoading(on) {
-    const btn = document.getElementById('refreshBtn');
-    btn.disabled = on;
-    btn.classList.toggle('loading', on);
+    const b = document.getElementById('refreshBtn');
+    b.disabled = on;
+    b.querySelector('svg').classList.toggle('spin', on);
   }
 
-  function formatDate(d) {
-    return new Date(d).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
-  }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
-  // Close modal on Escape
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') document.getElementById('modalOverlay').classList.remove('open');
-  });
+  // ── Auth + init ────────────────────────────────────────
+  async function signOut() { await sb_auth.auth.signOut(); location.href = 'login.html'; }
 
-  // ── Auth ───────────────────────────────────────────────────
-  const sb_auth = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-  async function checkAuth() {
+  (async () => {
     const { data: { session } } = await sb_auth.auth.getSession();
-    if (!session) window.location.href = 'login.html';
-  }
-
-  async function signOut() {
-    await sb_auth.auth.signOut();
-    window.location.href = 'login.html';
-  }
-
-  checkAuth();
-
-  // ── Init ───────────────────────────────────────────────────
-  // Must run after sb_auth is created (sb() reads it immediately)
-  loadAll();
-
+    if (!session) { location.href = 'login.html'; return; }
+    loadAll();
+  })();
 </script>
 </body>
 </html>
