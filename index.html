@@ -116,7 +116,7 @@
       <input type="text" id="inputPostcode" placeholder="e.g. TW8 9HF">
     </div>
     <div class="form-group">
-      <label>Device group</label>
+      <label>Device kit</label>
       <select id="inputGroup"><option value="">Loading...</option></select>
     </div>
     <div class="form-group">
@@ -194,7 +194,7 @@
         <table class="job-table">
           <thead>
             <tr>
-              <th>Site</th><th>Group</th><th>Postcode</th>
+              <th>Site</th><th>Kit</th><th>Postcode</th>
               <th>${isActive ? 'Started' : 'Period'}</th>
               <th>Devices</th><th></th>
             </tr>
@@ -214,7 +214,7 @@
               return `
                 <tr onclick="window.location.href='jobs.html?job=${job.id}'">
                   <td><div class="job-name">${escHtml(job.site_name || 'Unnamed')}</div></td>
-                  <td><span class="group-badge">${escHtml(job.device_group_name)}</span></td>
+                  <td><span class="group-badge">${escHtml(job.device_kit_name)}</span></td>
                   <td><span class="date-cell">${escHtml(job.postcode || '—')}</span></td>
                   <td><span class="date-cell">${dateCell}</span></td>
                   <td><div class="device-indicators">${pills || '<span style="color:var(--text-dim);font-size:11px">No readings yet</span>'}</div></td>
@@ -236,11 +236,11 @@
     document.getElementById('inputClickup').value = '';
     document.getElementById('inputStartDate').value = new Date().toISOString().split('T')[0];
     try {
-      const config = await sb('config?select=device_group_name');
-      const groups = [...new Set(config.map(r => r.device_group_name))].sort();
+      const config = await sb('config?select=device_kit_name');
+      const groups = [...new Set(config.map(r => r.device_kit_name))].sort();
       document.getElementById('inputGroup').innerHTML = groups.map(g => `<option value="${g}">${g}</option>`).join('');
     } catch(e) {
-      document.getElementById('inputGroup').innerHTML = '<option value="">Error loading groups</option>';
+      document.getElementById('inputGroup').innerHTML = '<option value="">Error loading kits</option>';
     }
     document.getElementById('modalOverlay').classList.add('open');
     setTimeout(() => document.getElementById('inputSiteName').focus(), 50);
@@ -262,7 +262,7 @@
     errEl.textContent = '';
     if (!siteName) { errEl.textContent = 'Site name is required.'; return; }
     if (!postcode)  { errEl.textContent = 'Postcode is required.'; return; }
-    if (!group)     { errEl.textContent = 'Device group is required.'; return; }
+    if (!group)     { errEl.textContent = 'Device kit is required.'; return; }
 
     saveBtn.disabled = true;
     saveBtn.textContent = 'Creating...';
@@ -270,7 +270,7 @@
     try {
       const result = await sb('jobs', {
         method: 'POST', prefer: 'return=representation',
-        body: { site_name: siteName, postcode: postcode.toUpperCase(), device_group_name: group, job_start_date: startDate || null, active: true, clickup_task_id: document.getElementById('inputClickup').value.trim() || null }
+        body: { site_name: siteName, postcode: postcode.toUpperCase(), device_kit_name: group, job_start_date: startDate || null, active: true, clickup_task_id: document.getElementById('inputClickup').value.trim() || null }
       });
       document.getElementById('modalOverlay').classList.remove('open');
       if (result && result[0]) window.location.href = `jobs.html?job=${result[0].id}`;

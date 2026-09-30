@@ -490,7 +490,7 @@
 
       document.getElementById('jobTitle').textContent = job.site_name || 'Job ' + jobId;
       document.getElementById('jobMeta').textContent =
-        `${job.postcode || ''}${job.job_start_date ? '  ·  Started ' + formatDate(job.job_start_date) : ''}  ·  Group ${job.device_group_name}`;
+        `${job.postcode || ''}${job.job_start_date ? '  ·  Started ' + formatDate(job.job_start_date) : ''}  ·  Kit ${job.device_kit_name}`;
 
       const [readings, settings] = await Promise.all([
         sb(`readings?select=*&job_id=eq.${jobId}&order=recorded_at.asc`),
