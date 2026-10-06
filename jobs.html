@@ -45,6 +45,7 @@
     .wet-flag.dry { color: #1e8a1e; }
     .wet-flag.wet { color: #1f5fa8; }
     .wet-flag.old { opacity: 0.6; }
+    .wet-flag.settling { color: #6c6c6c; }
     .node .signal { width: 24px; height: 24px; border: 1px solid #ffffff; border-radius: 2px; display: inline-flex; align-items: flex-end; justify-content: center; gap: 2px; padding: 3px; }
     .node .signal i { width: 4px; background: #ffffff; opacity: 0.35; }
     .node .signal i.on { opacity: 1; }
@@ -192,10 +193,21 @@
       </div>
       <div class="field">
         <label for="inputType">Type</label>
-        <select id="inputType">
-          <option value="enclosed">Enclosed</option>
-          <option value="ambient">Ambient</option>
+        <select id="inputType" onchange="syncTargetField()">
+          <option value="enclosed">Enclosed (sealed on material)</option>
+          <option value="ambient">Room air (drying conditions)</option>
         </select>
+      </div>
+      <div class="field" id="targetField">
+        <label for="inputTarget">Dry target (RH in the sealed pocket)</label>
+        <select id="inputTarget" onchange="syncTargetField()">
+          <option value="65">Timber, wood flooring: 65 %</option>
+          <option value="70">70 %</option>
+          <option value="75">Screed under vinyl, carpet or tiles: 75 %</option>
+          <option value="80">Plaster, masonry: 80 %</option>
+          <option value="custom">Other…</option>
+        </select>
+        <input type="number" id="inputTargetCustom" min="30" max="95" step="1" placeholder="RH %" style="margin-top:6px;display:none">
       </div>
       <div class="form-msg" id="saveStatus"></div>
     </div>
@@ -227,9 +239,14 @@
   };
   const CODES = Object.keys(TYPES);
 
-  // Wet / dry flag on each sensor card: dry when BOTH are at or below these
+  // Room air sensors: "DRY AIR" when BOTH are at or below these
   const DRY_GPK = 10;   // g/kg
-  const DRY_RH  = 60;   // %rH (stops a cold, damp room showing dry)
+  const DRY_RH  = 60;   // %rH (stops a cold, damp room counting as good drying air)
+  // Enclosed (sealed on material) sensors: DRY when pocket RH is at or below the sensor's target
+  const DEFAULT_TARGET_RH = 65;          // timber
+  const SETTLE_HOURS = 48;               // a sealed pocket needs time to balance with the material
+  const TARGET_PRESETS = { 65: 'timber', 75: 'screed', 80: 'plaster, masonry' };
+  const TYPE_LABEL = { enclosed: 'Enclosed (on material)', ambient: 'Room air' };
 
   let job = null;
   let allReadings = [];
@@ -440,13 +457,7 @@
     const seen = latest ? parseTs(latest.recorded_at) : null;
     const st = sensorStatus(rows.map(r => r.recorded_at));
     const waiting = !isW && !rows.length;
-    const flagGpk = isW ? null : valueOf(latest, 'GPK', src);
-    const flagRh  = isW ? null : valueOf(latest, 'HUM', src);
-    const isDry   = flagGpk != null && flagGpk <= DRY_GPK && flagRh != null && flagRh <= DRY_RH;
-    const flag = flagGpk == null ? '' :
-      `<span class="wet-flag ${isDry ? 'dry' : 'wet'} ${st.status === 'offline' ? 'old' : ''}" title="${esc(
-        `GPK ${flagGpk.toFixed(2)} g/kg${flagRh != null ? ', RH ' + flagRh.toFixed(0) + ' %' : ''}. ` +
-        `Dry when GPK is ${DRY_GPK} g/kg or under and RH is ${DRY_RH} % or under.` + (st.status === 'offline' ? ' Last known reading: sensor is offline.' : ''))}">${isDry ? 'DRY' : 'WET'}</span>`;
+    const flag = isW ? '' : wetDryFlag(src, rows, latest, st);
     const cls = isW ? 'external' : waiting ? 'waiting' : st.status === 'live' ? '' : st.status;
     const label = isW ? 'EXTERNAL' : waiting ? 'WAITING' : st.label;
     const bars = isW ? 3 : waiting ? 0 : { live: 3, delayed: 2, offline: 1 }[st.status];
@@ -466,7 +477,8 @@
              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.3V21h3.7l11-11-3.7-3.7-11 11zM20.7 7a1 1 0 0 0 0-1.4l-2.3-2.3a1 1 0 0 0-1.4 0l-1.8 1.8 3.7 3.7L20.7 7z"/></svg>
            </button></div></div>
          <div class="info-row"><div class="info-label">Location</div><div class="info-val">${esc(s.location) || '—'}</div></div>
-         <div class="info-row"><div class="info-label">Type</div><div class="info-val">${s.type === 'ambient' ? 'Ambient' : 'Enclosed'}</div></div>`;
+         <div class="info-row"><div class="info-label">Type</div><div class="info-val">${TYPE_LABEL[s.type === 'ambient' ? 'ambient' : 'enclosed']}</div></div>
+         ${s.type === 'ambient' ? '' : `<div class="info-row"><div class="info-label">Dry target</div><div class="info-val">${targetText(targetOf(src))}</div></div>`}`;
 
     const rowsHtml = codes.map(code => {
       const key = `${src}|${code}`;
@@ -509,6 +521,43 @@
         ${rowsHtml}
       </div>
     </div>`;
+  }
+
+  // ── Wet / dry badge ──────────────────────────────────
+  function targetOf(src) {
+    const t = Number(deviceSettings[src]?.dry_target_rh);
+    return t > 0 ? t : DEFAULT_TARGET_RH;
+  }
+  function targetText(t) { return `RH ${t} % or under` + (TARGET_PRESETS[t] ? ` (${TARGET_PRESETS[t]})` : ''); }
+
+  function wetDryFlag(src, rows, latest, st) {
+    const gpk = valueOf(latest, 'GPK', src);
+    const rh  = valueOf(latest, 'HUM', src);
+    if (rh == null) return '';
+    const type = deviceSettings[src]?.type === 'ambient' ? 'ambient' : 'enclosed';
+    const old = st.status === 'offline' ? ' old' : '';
+    const offlineNote = st.status === 'offline' ? ' Last known reading: sensor is offline.' : '';
+    const badge = (cls, text, tip) => `<span class="wet-flag ${cls}${old}" title="${esc(tip + offlineNote)}">${text}</span>`;
+
+    if (type === 'ambient') {
+      const good = gpk != null && gpk <= DRY_GPK && rh <= DRY_RH;
+      return badge(good ? 'dry' : 'wet', good ? 'DRY AIR' : 'DAMP AIR',
+        `Room air: GPK ${gpk == null ? '—' : gpk.toFixed(2)} g/kg, RH ${rh.toFixed(0)} %. ` +
+        `Good drying air when GPK is ${DRY_GPK} g/kg or under and RH is ${DRY_RH} % or under.`);
+    }
+
+    // Enclosed: the pocket RH reflects the material's moisture (equilibrium RH)
+    const target = targetOf(src);
+    const firstMs = rows.length ? parseTs(rows[0].recorded_at).getTime() : Date.now();
+    const settledIn = SETTLE_HOURS - (Date.now() - firstMs) / 3600000;
+    if (settledIn > 0) {
+      return badge('settling', 'SETTLING',
+        `Pocket RH ${rh.toFixed(0)} %. Sealed sensors need about ${SETTLE_HOURS} hours to balance with the material ` +
+        `before the reading is reliable. About ${Math.ceil(settledIn)} hours to go. Dry target: ${targetText(target)}.`);
+    }
+    const dry = rh <= target;
+    return badge(dry ? 'dry' : 'wet', dry ? 'DRY' : 'WET',
+      `Pocket RH ${rh.toFixed(0)} %. Dry target: ${targetText(target)}.`);
   }
 
   function toggleStats(key) {
@@ -628,9 +677,21 @@
     document.getElementById('modalDeviceName').textContent = deviceName;
     document.getElementById('inputLocation').value = s.location || '';
     document.getElementById('inputType').value = s.type || 'enclosed';
+    const t = Number(s.dry_target_rh) > 0 ? Number(s.dry_target_rh) : DEFAULT_TARGET_RH;
+    const preset = ['65', '70', '75', '80'].includes(String(t));
+    document.getElementById('inputTarget').value = preset ? String(t) : 'custom';
+    document.getElementById('inputTargetCustom').value = preset ? '' : t;
+    syncTargetField();
     const st = document.getElementById('saveStatus'); st.textContent = ''; st.className = 'form-msg';
     document.getElementById('modalOverlay').classList.add('open');
     document.getElementById('inputLocation').focus();
+  }
+
+  function syncTargetField() {
+    const enclosed = document.getElementById('inputType').value === 'enclosed';
+    document.getElementById('targetField').style.display = enclosed ? '' : 'none';
+    document.getElementById('inputTargetCustom').style.display =
+      document.getElementById('inputTarget').value === 'custom' ? '' : 'none';
   }
 
   function closeModal(e) {
@@ -643,6 +704,11 @@
     if (!editingDevice) return;
     const location_ = document.getElementById('inputLocation').value.trim();
     const type = document.getElementById('inputType').value;
+    const tSel = document.getElementById('inputTarget').value;
+    const dry_target_rh = tSel === 'custom' ? Number(document.getElementById('inputTargetCustom').value) : Number(tSel);
+    if (type === 'enclosed' && !(dry_target_rh >= 30 && dry_target_rh <= 95)) {
+      const e = document.getElementById('saveStatus'); e.className = 'form-msg error'; e.textContent = 'Enter a dry target between 30 and 95 %.'; return;
+    }
     const st = document.getElementById('saveStatus');
     st.className = 'form-msg'; st.textContent = 'Saving…';
     try {
@@ -650,11 +716,11 @@
       const dev = encodeURIComponent(editingDevice);
       const existing = await sb(`job_devices?job_id=eq.${jid}&device_name=eq.${dev}&select=id`);
       if (existing && existing.length) {
-        await sb(`job_devices?job_id=eq.${jid}&device_name=eq.${dev}`, { method: 'PATCH', prefer: 'return=minimal', body: { location: location_, type } });
+        await sb(`job_devices?job_id=eq.${jid}&device_name=eq.${dev}`, { method: 'PATCH', prefer: 'return=minimal', body: { location: location_, type, dry_target_rh } });
       } else {
-        await sb('job_devices', { method: 'POST', prefer: 'return=minimal', body: { job_id: jid, device_name: editingDevice, location: location_, type } });
+        await sb('job_devices', { method: 'POST', prefer: 'return=minimal', body: { job_id: jid, device_name: editingDevice, location: location_, type, dry_target_rh } });
       }
-      deviceSettings[editingDevice] = { ...(deviceSettings[editingDevice] || {}), location: location_, type };
+      deviceSettings[editingDevice] = { ...(deviceSettings[editingDevice] || {}), location: location_, type, dry_target_rh };
       st.className = 'form-msg ok'; st.textContent = 'Saved';
       renderNodes();
       setTimeout(() => closeModal(), 600);
