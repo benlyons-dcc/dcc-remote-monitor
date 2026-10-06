@@ -5,18 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Job · DCC Environmental Monitor</title>
   <link rel="stylesheet" href="theme.css">
+  <script src="app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     /* Title row */
-    .title-row { display: flex; align-items: flex-start; gap: 12px; padding-bottom: 10px; border-bottom: 1px solid #ccc; margin-bottom: 14px; }
+    .title-row { display: flex; align-items: flex-start; gap: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--line); margin-bottom: 14px; }
     .title-row h1 { font-size: 20px; font-weight: 400; line-height: 28px; }
     .title-row .sub { color: var(--text); }
     .title-right { margin-left: auto; display: flex; align-items: center; gap: 8px; position: relative; }
     .updated { color: var(--text-dim); font-size: 12px; }
-    .gear-menu { display: none; position: absolute; right: 0; top: 34px; z-index: 50; background: #fff; border: 1px solid var(--rule); border-radius: 4px; box-shadow: 0 4px 14px rgba(0,0,0,0.15); min-width: 170px; }
+    .gear-menu { display: none; position: absolute; right: 0; top: 34px; z-index: 50; background: var(--surface); border: 1px solid var(--rule); border-radius: 4px; box-shadow: 0 4px 14px var(--shadow); min-width: 170px; }
     .gear-menu.open { display: block; }
-    .gear-menu button { display: block; width: 100%; text-align: left; padding: 8px 12px; background: none; border: 0; }
-    .gear-menu button:hover { background: #f1f1f1; }
+    .gear-menu button { display: block; width: 100%; text-align: left; padding: 8px 12px; background: none; border: 0; color: var(--text); }
+    .gear-menu button:hover { background: var(--hover); }
     .spin { animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -25,32 +26,33 @@
     .chart-box { flex: 1; min-width: 0; height: 490px; position: relative; }
     .chart-box .no-series { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--text-dim); }
     .sidebar { width: 300px; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; }
-    .sidebar hr { border: 0; border-top: 1px solid #ccc; margin: 4px 0; }
+    .sidebar hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
     .sidebar .field { margin-bottom: 0; }
-    .collapse { display: none; background: #f7f7f7; border: 1px solid #e3e3e3; border-radius: 4px; padding: 8px; }
+    .collapse { display: none; background: var(--surface-2); border: 1px solid var(--line-soft); border-radius: 4px; padding: 8px; }
     .collapse.open { display: block; }
     .axis-grid { display: grid; grid-template-columns: auto 1fr 1fr; gap: 6px 8px; align-items: center; }
-    .axis-grid input { height: 30px; padding: 3px 8px; border: 1px solid var(--input-bd); border-radius: 3.5px; width: 100%; font: inherit; }
+    .axis-grid input { height: 30px; padding: 3px 8px; border: 1px solid var(--input-bd); border-radius: 3.5px; width: 100%; font: inherit; background: var(--surface); color: var(--text); }
     .type-list { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
     .type-item { display: flex; align-items: center; gap: 6px; font-weight: 700; cursor: pointer; }
     .side-msg { font-size: 12px; color: var(--red); min-height: 16px; }
 
     /* Node cards */
     .nodes { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; margin-top: 14px; }
-    .node { border: 1px solid var(--green); border-radius: 4px; overflow: hidden; background: #fff; }
+    .node { border: 1px solid var(--green); border-radius: 4px; overflow: hidden; background: var(--panel); }
     .node .status-bar { background: var(--green); padding: 4px; display: flex; align-items: center; }
-    .node .status-text { color: #fff; font-weight: 700; padding: 0 8px; }
-    .node .signal { width: 24px; height: 24px; border: 1px solid #fff; border-radius: 2px; display: inline-flex; align-items: flex-end; justify-content: center; gap: 2px; padding: 3px; }
-    .node .signal i { width: 4px; background: #fff; opacity: 0.35; }
+    .node .status-text { color: #ffffff; font-weight: 700; padding: 0 8px; }
+    .node .signal { width: 24px; height: 24px; border: 1px solid #ffffff; border-radius: 2px; display: inline-flex; align-items: flex-end; justify-content: center; gap: 2px; padding: 3px; }
+    .node .signal i { width: 4px; background: #ffffff; opacity: 0.35; }
     .node .signal i.on { opacity: 1; }
-    .node.stale   { border-color: var(--amber); } .node.stale .status-bar { background: var(--amber); }
+    .node.delayed { border-color: var(--amber); } .node.delayed .status-bar { background: var(--amber); }
     .node.offline { border-color: var(--red); }   .node.offline .status-bar { background: var(--red); }
     .node.external { border-color: var(--grey); } .node.external .status-bar { background: var(--grey); }
+    .node.waiting  { border-color: var(--grey); border-style: dashed; } .node.waiting .status-bar { background: var(--grey); }
     .node .contents { padding: 4px; }
     .node .info-row { display: flex; min-height: 24px; align-items: center; }
     .node .info-label { width: 120px; padding-left: 8px; font-weight: 700; flex-shrink: 0; }
     .node .info-val { display: flex; align-items: center; gap: 6px; min-width: 0; }
-    .node .info-val .pen { background: none; border: 0; padding: 0 2px; color: #222; display: inline-flex; }
+    .node .info-val .pen { background: none; border: 0; padding: 0 2px; color: var(--text); display: inline-flex; }
     .node .info-head { margin-bottom: 6px; }
 
     .sensor-row { background: var(--row); border-radius: 4px; margin-top: 4px; }
@@ -58,9 +60,9 @@
     .sensor-row .row { display: flex; align-items: center; padding: 4px; gap: 8px; }
     .sensor-row .code { width: 48px; font-weight: 400; text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; padding-left: 2px; }
     .sensor-row .val-wrap { display: flex; border-radius: 4px; overflow: hidden; }
-    .sensor-row .val { width: 88px; height: 24px; background: #fff; font-size: 11.2px; display: flex; align-items: center; justify-content: center; color: #000; }
-    .sensor-row .swatch { width: 24px; height: 24px; background: #d3d3d3; }
-    .sensor-row .menu { margin-left: auto; width: 24px; height: 24px; border-radius: 4px; border: 0; background: var(--btn); color: #fff; display: inline-flex; align-items: center; justify-content: center; }
+    .sensor-row .val { width: 88px; height: 24px; background: var(--val-bg); font-size: 11.2px; display: flex; align-items: center; justify-content: center; color: var(--val-text); }
+    .sensor-row .swatch { width: 24px; height: 24px; background: var(--swatch-off); }
+    .sensor-row .menu { margin-left: auto; width: 24px; height: 24px; border-radius: 4px; border: 0; background: var(--btn); color: #ffffff; display: inline-flex; align-items: center; justify-content: center; }
     .sensor-row .stats { display: none; padding: 0 8px 6px 34px; font-size: 12px; color: var(--text-mid); gap: 14px; }
     .sensor-row.show-stats .stats { display: flex; }
 
@@ -81,6 +83,7 @@
   </a>
   <ul class="nav-links">
     <li><a class="selected" href="index.html"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h2v16h16v2H3V3zm4 10h3v5H7v-5zm5-5h3v10h-3V8zm5 3h3v7h-3v-7z"/></svg><span class="label">Dashboard</span></a></li>
+    <li><button class="theme-btn" onclick="toggleTheme()" title="Switch light / dark mode"><svg class="moon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg><span class="label">Theme</span></button></li>
     <li><button onclick="signOut()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg><span class="label">Logout</span></button></li>
   </ul>
 </nav>
@@ -309,7 +312,8 @@
       ]);
       allReadings = readings;
       deviceSettings = Object.fromEntries((settings || []).map(s => [s.device_name, s]));
-      devices = [...new Set(allReadings.map(r => r.device_name))].sort();
+      // Sensors with readings, plus kit sensors registered in job_devices that haven't reported yet
+      devices = [...new Set([...allReadings.map(r => r.device_name), ...(settings || []).map(s => s.device_name)])].filter(Boolean).sort();
 
       // One weather row per timestamp
       const seen = new Set();
@@ -405,18 +409,18 @@
     if (s || e) {
       const from = s ? new Date(s + 'T00:00:00') : null;
       const to   = e ? new Date(e + 'T23:59:59') : null;
-      return r => { const d = new Date(r.recorded_at); return (!from || d >= from) && (!to || d <= to); };
+      return r => { const d = parseTs(r.recorded_at); return (!from || d >= from) && (!to || d <= to); };
     }
     const hours = parseInt(document.getElementById('rangeSelect').value) || 0;
     if (!hours) return () => true;
     const cutoff = Date.now() - hours * 3600000;
-    return r => new Date(r.recorded_at).getTime() >= cutoff;
+    return r => parseTs(r.recorded_at).getTime() >= cutoff;
   }
 
   // ── Node cards ─────────────────────────────────────────
   function renderNodes() {
     const el = document.getElementById('nodes');
-    if (!sources.length) { el.innerHTML = '<div class="empty">No readings for this job yet</div>'; return; }
+    if (!sources.length) { el.innerHTML = '<div class="empty">No sensors for this job yet. Check the job has a kit with sensors in config.</div>'; return; }
     const inPeriod = periodFilter();
     el.innerHTML = sources.map(src => nodeCard(src, inPeriod)).join('');
   }
@@ -425,11 +429,16 @@
     const isW = src === WEATHER;
     const rows = rowsOf(src);
     const latest = rows[rows.length - 1];
-    const seen = latest ? new Date(latest.recorded_at) : null;
-    const age = seen ? (Date.now() - seen) / 3600000 : Infinity;
-    const cls = isW ? 'external' : age < 2 ? '' : age < 24 ? 'stale' : 'offline';
-    const label = isW ? 'EXTERNAL' : age < 2 ? 'ACTIVE' : age < 24 ? 'STALE' : 'OFFLINE';
-    const bars = isW ? 3 : age < 2 ? 3 : age < 24 ? 2 : 1;
+    const seen = latest ? parseTs(latest.recorded_at) : null;
+    const st = sensorStatus(rows.map(r => r.recorded_at));
+    const waiting = !isW && !rows.length;
+    const cls = isW ? 'external' : waiting ? 'waiting' : st.status === 'live' ? '' : st.status;
+    const label = isW ? 'EXTERNAL' : waiting ? 'WAITING' : st.label;
+    const bars = isW ? 3 : waiting ? 0 : { live: 3, delayed: 2, offline: 1 }[st.status];
+    const tip = isW ? 'Outside conditions from forecast data'
+      : waiting ? 'No readings yet. Readings are fetched hourly, so the first ones appear within about an hour.'
+      : st.status === 'live' ? `Reporting normally, about every ${fmtDuration(st.interval)}`
+      : `No reading for ${fmtDuration(st.age)}. Usually reports every ${fmtDuration(st.interval)}.`;
     const s = deviceSettings[src] || {};
     const periodRows = rows.filter(inPeriod);
     const codes = isW ? ['DWT', 'HUM', 'TMP', 'WCT', 'GPK'] : CODES;
@@ -469,10 +478,10 @@
       </div>`;
     }).join('');
 
-    const seenStr = seen ? seen.toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+    const seenStr = seen ? `${seen.toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })} <span style="color:var(--text-dim)">(${fmtDuration(st.age)} ago)</span>` : '—';
 
     return `<div class="node ${cls}">
-      <div class="status-bar">
+      <div class="status-bar" title="${esc(tip)}">
         <span class="status-text">${label}</span>
         <span class="signal"><i class="${bars >= 1 ? 'on' : ''}" style="height:5px"></i><i class="${bars >= 2 ? 'on' : ''}" style="height:10px"></i><i class="${bars >= 3 ? 'on' : ''}" style="height:15px"></i></span>
       </div>
@@ -506,7 +515,7 @@
 
     const timestamps = [...new Set(series.flatMap(s => [...s.byTs.keys()]))].sort();
     const labels = timestamps.map(ts => {
-      const d = new Date(ts);
+      const d = parseTs(ts);
       return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
     });
 
@@ -521,13 +530,18 @@
       borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 3, tension: 0, spanGaps: true,
     }));
 
-    document.getElementById('noSeries').style.display = datasets.length ? 'none' : 'flex';
+    const ns = document.getElementById('noSeries');
+    const hasData = timestamps.length > 0;
+    ns.textContent = !datasets.length ? 'Tick a reading on a sensor below to chart it'
+      : allReadings.length ? 'No readings in this period' : 'No readings yet. The first ones usually appear within an hour.';
+    ns.style.display = hasData ? 'none' : 'flex';
     document.getElementById('leftAxisLabel').textContent  = types[0] ? `Left (${types[0]})`  : 'Left';
     document.getElementById('rightAxisLabel').textContent = types[1] ? `Right (${types[1]})` : 'Right';
 
     const num = id => { const v = document.getElementById(id).value; return v === '' ? undefined : Number(v); };
     const axisTitle = code => code ? `${code}(${TYPES[code].unit})` : '';
     const tickFont = { family: 'Arial, sans-serif', size: 11 };
+    const C = { axis: cssVar('--chart-text'), grid: cssVar('--chart-grid'), surface: cssVar('--surface'), line: cssVar('--line'), text: cssVar('--text') };
 
     if (chart) chart.destroy();
     chart = new Chart(document.getElementById('chart'), {
@@ -539,8 +553,8 @@
         plugins: {
           legend: { display: false },
           tooltip: {
-            backgroundColor: '#fff', borderColor: '#ccc', borderWidth: 1,
-            titleColor: '#212529', bodyColor: '#212529', titleFont: tickFont, bodyFont: tickFont,
+            backgroundColor: C.surface, borderColor: C.line, borderWidth: 1,
+            titleColor: C.text, bodyColor: C.text, titleFont: tickFont, bodyFont: tickFont,
             boxPadding: 4, usePointStyle: true,
             callbacks: {
               label: ctx => {
@@ -552,20 +566,20 @@
         },
         scales: {
           x: {
-            ticks: { color: '#000', font: tickFont, maxRotation: 60, minRotation: 60, autoSkip: true, maxTicksLimit: innerWidth < 700 ? 6 : 12 },
-            grid: { color: 'rgba(0,0,0,0.07)' }, border: { color: '#000' },
+            ticks: { color: C.axis, font: tickFont, maxRotation: 60, minRotation: 60, autoSkip: true, maxTicksLimit: innerWidth < 700 ? 6 : 12 },
+            grid: { color: C.grid }, border: { color: C.axis },
           },
           y: {
             display: !!types[0], position: 'left', min: num('yMin'), max: num('yMax'),
-            ticks: { color: '#000', font: tickFont },
-            grid: { color: 'rgba(0,0,0,0.07)' }, border: { color: '#000' },
-            title: { display: true, text: axisTitle(types[0]), color: '#000', font: { ...tickFont, weight: 'bold' } },
+            ticks: { color: C.axis, font: tickFont },
+            grid: { color: C.grid }, border: { color: C.axis },
+            title: { display: true, text: axisTitle(types[0]), color: C.axis, font: { ...tickFont, weight: 'bold' } },
           },
           y1: {
             display: !!types[1], position: 'right', min: num('y1Min'), max: num('y1Max'),
-            ticks: { color: '#000', font: tickFont },
-            grid: { drawOnChartArea: false }, border: { color: '#000' },
-            title: { display: true, text: axisTitle(types[1]), color: '#000', font: { ...tickFont, weight: 'bold' } },
+            ticks: { color: C.axis, font: tickFont },
+            grid: { drawOnChartArea: false }, border: { color: C.axis },
+            title: { display: true, text: axisTitle(types[1]), color: C.axis, font: { ...tickFont, weight: 'bold' } },
           },
         },
       },
@@ -644,6 +658,7 @@
   }
 
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+  window.addEventListener('themechange', () => { if (chart) updateChart(); });
 
   // ── Auth + init ────────────────────────────────────────
   async function signOut() { await sb_auth.auth.signOut(); location.href = 'login.html'; }
