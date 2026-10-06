@@ -41,6 +41,10 @@
     .node { border: 1px solid var(--green); border-radius: 4px; overflow: hidden; background: var(--panel); }
     .node .status-bar { background: var(--green); padding: 4px; display: flex; align-items: center; }
     .node .status-text { color: #ffffff; font-weight: 700; padding: 0 8px; }
+    .wet-flag { margin-left: auto; padding: 1px 10px; border-radius: 3px; font-weight: 700; font-size: 12px; letter-spacing: 0.04em; background: #ffffff; cursor: help; }
+    .wet-flag.dry { color: #1e8a1e; }
+    .wet-flag.wet { color: #1f5fa8; }
+    .wet-flag.old { opacity: 0.6; }
     .node .signal { width: 24px; height: 24px; border: 1px solid #ffffff; border-radius: 2px; display: inline-flex; align-items: flex-end; justify-content: center; gap: 2px; padding: 3px; }
     .node .signal i { width: 4px; background: #ffffff; opacity: 0.35; }
     .node .signal i.on { opacity: 1; }
@@ -222,6 +226,10 @@
     GPK: { name: 'Moisture ratio',             unit: 'g/kg', dp: 2, field: 'gpk' },
   };
   const CODES = Object.keys(TYPES);
+
+  // Wet / dry flag on each sensor card: dry when BOTH are at or below these
+  const DRY_GPK = 10;   // g/kg
+  const DRY_RH  = 60;   // %rH (stops a cold, damp room showing dry)
 
   let job = null;
   let allReadings = [];
@@ -432,6 +440,13 @@
     const seen = latest ? parseTs(latest.recorded_at) : null;
     const st = sensorStatus(rows.map(r => r.recorded_at));
     const waiting = !isW && !rows.length;
+    const flagGpk = isW ? null : valueOf(latest, 'GPK', src);
+    const flagRh  = isW ? null : valueOf(latest, 'HUM', src);
+    const isDry   = flagGpk != null && flagGpk <= DRY_GPK && flagRh != null && flagRh <= DRY_RH;
+    const flag = flagGpk == null ? '' :
+      `<span class="wet-flag ${isDry ? 'dry' : 'wet'} ${st.status === 'offline' ? 'old' : ''}" title="${esc(
+        `GPK ${flagGpk.toFixed(2)} g/kg${flagRh != null ? ', RH ' + flagRh.toFixed(0) + ' %' : ''}. ` +
+        `Dry when GPK is ${DRY_GPK} g/kg or under and RH is ${DRY_RH} % or under.` + (st.status === 'offline' ? ' Last known reading: sensor is offline.' : ''))}">${isDry ? 'DRY' : 'WET'}</span>`;
     const cls = isW ? 'external' : waiting ? 'waiting' : st.status === 'live' ? '' : st.status;
     const label = isW ? 'EXTERNAL' : waiting ? 'WAITING' : st.label;
     const bars = isW ? 3 : waiting ? 0 : { live: 3, delayed: 2, offline: 1 }[st.status];
@@ -484,6 +499,7 @@
       <div class="status-bar" title="${esc(tip)}">
         <span class="status-text">${label}</span>
         <span class="signal"><i class="${bars >= 1 ? 'on' : ''}" style="height:5px"></i><i class="${bars >= 2 ? 'on' : ''}" style="height:10px"></i><i class="${bars >= 3 ? 'on' : ''}" style="height:15px"></i></span>
+        ${flag}
       </div>
       <div class="contents">
         <div class="info-head">
