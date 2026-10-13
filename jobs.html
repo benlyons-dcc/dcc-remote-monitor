@@ -46,6 +46,7 @@
     .wet-flag.wet { color: #1f5fa8; }
     .wet-flag.old { opacity: 0.6; }
     .wet-flag.settling { color: #6c6c6c; }
+    #jobKitWarn:empty { display: none; }
     .node .signal { width: 24px; height: 24px; border: 1px solid #ffffff; border-radius: 2px; display: inline-flex; align-items: flex-end; justify-content: center; gap: 2px; padding: 3px; }
     .node .signal i { width: 4px; background: #ffffff; opacity: 0.35; }
     .node .signal i.on { opacity: 1; }
@@ -120,6 +121,7 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.3 7.3 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.3 7.3 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1c.5.4 1.1.7 1.7 1l.4 2.6h4l.4-2.6c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.5-2.3-1.6zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg>
           </button>
           <div class="gear-menu" id="gearMenu">
+            <button onclick="openJobModal()">Edit job details</button>
             <button onclick="archiveJob()">Archive job</button>
           </div>
         </div>
@@ -181,6 +183,26 @@
 </div>
 
 <div class="footer">© Disaster Care Capital Ltd <span id="year"></span></div>
+
+<!-- Edit job modal -->
+<div class="modal-overlay" id="jobModal" onclick="closeJobModal(event)">
+  <div class="modal">
+    <div class="modal-head"><span>Edit job details</span><button onclick="closeJobModal()">×</button></div>
+    <div class="modal-body">
+      <div class="field"><label for="jobSiteName">Site name</label><input type="text" id="jobSiteName"></div>
+      <div class="field"><label for="jobPostcode">Postcode</label><input type="text" id="jobPostcode"></div>
+      <div class="field"><label for="jobKit">Device kit</label><select id="jobKit" onchange="kitChanged()"></select></div>
+      <div class="form-msg" id="jobKitWarn" style="color:var(--amber);margin:-4px 0 10px"></div>
+      <div class="field"><label for="jobStart">Start date</label><input type="date" id="jobStart"></div>
+      <div class="field"><label for="jobClickup">ClickUp task ID (optional)</label><input type="text" id="jobClickup" placeholder="e.g. 86a1234bc"></div>
+      <div class="form-msg" id="jobSaveStatus"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn light auto" onclick="closeJobModal()">Cancel</button>
+      <button class="btn green auto" id="jobSaveBtn" onclick="saveJobDetails()">Save</button>
+    </div>
+  </div>
+</div>
 
 <!-- Edit device modal -->
 <div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
@@ -315,6 +337,18 @@
   const colourOf = src => src === WEATHER ? '#777777' : PALETTE[devices.indexOf(src) % PALETTE.length];
   const rowsOf = src => src === WEATHER ? weatherRows : allReadings.filter(r => r.device_name === src);
 
+  // ── Job header ─────────────────────────────────────────
+  function renderJobHeader() {
+    document.title = `${job.site_name || 'Job ' + jobId} · DCC Environmental Monitor`;
+    document.getElementById('jobTitle').textContent = `${job.site_name || 'Unnamed'} (Job ${job.id})`;
+    const bits = [];
+    if (job.job_start_date) bits.push('Started on ' + ukDate(job.job_start_date));
+    if (job.postcode) bits.push(job.postcode);
+    if (job.device_kit_name) bits.push(/^kit\b/i.test(job.device_kit_name) ? job.device_kit_name : 'Kit ' + job.device_kit_name);
+    if (!job.active) bits.push('Archived' + (job.job_end_date ? ' on ' + ukDate(job.job_end_date) : ''));
+    document.getElementById('jobMeta').textContent = bits.join('  ·  ');
+  }
+
   // ── Load ───────────────────────────────────────────────
   async function loadAll() {
     setLoading(true);
@@ -323,13 +357,7 @@
       job = jobs[0];
       if (!job) { document.getElementById('nodes').innerHTML = '<div class="empty">Job not found</div>'; return; }
 
-      document.title = `${job.site_name || 'Job ' + jobId} · DCC Environmental Monitor`;
-      document.getElementById('jobTitle').textContent = `${job.site_name || 'Unnamed'} (Job ${job.id})`;
-      const bits = [];
-      if (job.job_start_date) bits.push('Started on ' + ukDate(job.job_start_date));
-      if (job.postcode) bits.push(job.postcode);
-      if (job.device_kit_name) bits.push(/^kit\b/i.test(job.device_kit_name) ? job.device_kit_name : 'Kit ' + job.device_kit_name);
-      document.getElementById('jobMeta').textContent = bits.join('  ·  ');
+      renderJobHeader();
 
       const [readings, settings] = await Promise.all([
         sbAll(`readings?select=*&job_id=eq.${encodeURIComponent(jobId)}&order=recorded_at.asc`),
@@ -670,6 +698,86 @@
     } catch (e) { alert('Error archiving job: ' + e.message); }
   }
 
+  // ── Edit job modal ─────────────────────────────────────
+  async function openJobModal() {
+    if (!job) return;
+    document.getElementById('jobSiteName').value = job.site_name || '';
+    document.getElementById('jobPostcode').value = job.postcode || '';
+    document.getElementById('jobStart').value = job.job_start_date ? String(job.job_start_date).slice(0, 10) : '';
+    document.getElementById('jobClickup').value = job.clickup_task_id || '';
+    document.getElementById('jobKitWarn').textContent = '';
+    const st = document.getElementById('jobSaveStatus'); st.textContent = ''; st.className = 'form-msg';
+
+    const sel = document.getElementById('jobKit');
+    sel.innerHTML = `<option>${esc(job.device_kit_name || '')}</option>`;
+    sel.value = job.device_kit_name || '';
+    document.getElementById('jobModal').classList.add('open');
+    setTimeout(() => document.getElementById('jobSiteName').focus(), 50);
+    try {
+      const config = await sb('config?select=device_kit_name');
+      const kits = [...new Set([job.device_kit_name, ...config.map(r => r.device_kit_name)].filter(Boolean))].sort();
+      sel.innerHTML = kits.map(k => `<option value="${esc(k)}">${esc(k)}</option>`).join('');
+      sel.value = job.device_kit_name || '';
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  function kitChanged() {
+    const changed = document.getElementById('jobKit').value !== (job.device_kit_name || '');
+    document.getElementById('jobKitWarn').textContent = changed
+      ? 'Changing the kit makes the hourly fetch read the new kit\'s sensors from now on. Readings already saved stay on this job. Only do this if the kit on site was swapped.'
+      : '';
+  }
+
+  function closeJobModal(e) {
+    if (e && e.target !== document.getElementById('jobModal')) return;
+    document.getElementById('jobModal').classList.remove('open');
+  }
+
+  async function saveJobDetails() {
+    const site_name = document.getElementById('jobSiteName').value.trim();
+    const postcode = document.getElementById('jobPostcode').value.trim().toUpperCase();
+    const device_kit_name = document.getElementById('jobKit').value;
+    const job_start_date = document.getElementById('jobStart').value || null;
+    const clickup_task_id = document.getElementById('jobClickup').value.trim() || null;
+    const st = document.getElementById('jobSaveStatus');
+    const btn = document.getElementById('jobSaveBtn');
+
+    st.className = 'form-msg error';
+    if (!site_name) { st.textContent = 'Site name is required.'; return; }
+    if (!postcode) { st.textContent = 'Postcode is required.'; return; }
+    if (!device_kit_name) { st.textContent = 'Device kit is required.'; return; }
+
+    const changes = {};
+    if (site_name !== (job.site_name || '')) changes.site_name = site_name;
+    if (postcode !== (job.postcode || '')) changes.postcode = postcode;
+    if (device_kit_name !== (job.device_kit_name || '')) changes.device_kit_name = device_kit_name;
+    if (job_start_date !== (job.job_start_date ? String(job.job_start_date).slice(0, 10) : null)) changes.job_start_date = job_start_date;
+    if (clickup_task_id !== (job.clickup_task_id || null)) changes.clickup_task_id = clickup_task_id;
+    if (!Object.keys(changes).length) { closeJobModal(); return; }
+
+    if (changes.device_kit_name && !confirm(`Change this job's kit from "${job.device_kit_name}" to "${device_kit_name}"?`)) return;
+
+    btn.disabled = true; st.className = 'form-msg'; st.textContent = 'Saving…';
+    try {
+      const updated = await sb(`jobs?id=eq.${encodeURIComponent(jobId)}`, {
+        method: 'PATCH', prefer: 'return=representation', body: changes,
+      });
+      if (!updated || !updated.length) throw new Error('No rows updated. You may not have permission to edit jobs.');
+      job = updated[0];
+      renderJobHeader();
+      st.className = 'form-msg ok'; st.textContent = 'Saved';
+      setTimeout(() => closeJobModal(), 600);
+      if (changes.device_kit_name) loadAll(); // new kit's sensors come from the job_devices trigger
+    } catch (e) {
+      console.error(e);
+      st.className = 'form-msg error'; st.textContent = 'Error saving: ' + e.message;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
   // ── Edit sensor modal ──────────────────────────────────
   function openModal(deviceName) {
     editingDevice = deviceName;
@@ -739,7 +847,7 @@
     b.querySelector('svg').classList.toggle('spin', on);
   }
 
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); closeJobModal(); } });
   window.addEventListener('themechange', () => { if (chart) updateChart(); });
 
   // ── Auth + init ────────────────────────────────────────
