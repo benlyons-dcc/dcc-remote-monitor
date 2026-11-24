@@ -5,9 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Login · DCC Environmental Monitor</title>
   <link rel="stylesheet" href="theme.css">
+  <script src="app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
-    .page { padding-top: 70px; background: #fff; }
+    .page { padding-top: 70px; background: var(--panel); }
     .login { max-width: 420px; padding: 14px 28px 40px; }
     .login h1 { font-size: 32px; font-weight: 400; margin-bottom: 6px; }
     .login p { margin-bottom: 8px; }
@@ -27,15 +28,18 @@
     <svg width="26" height="32" viewBox="0 0 26 32"><path d="M13 1C13 1 2 13.5 2 20.5a11 11 0 0 0 22 0C24 13.5 13 1 13 1z" fill="#bccf00"/><path d="M8 21a5 5 0 0 0 5 5" stroke="#333" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
     <div><div class="brand-name">DCC</div><div class="brand-sub">Environmental Monitor</div></div>
   </a>
+  <ul class="nav-links">
+    <li><button class="theme-btn" onclick="toggleTheme()" title="Switch light / dark mode"><svg class="moon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg><span class="label">Theme</span></button></li>
+  </ul>
 </nav>
 
 <div class="page">
   <div class="login">
     <h1>Login</h1>
-    <p>Enter your email and we'll send you a sign-in link. No password needed.</p>
+    <p>Enter the email address registered with Disaster Care Capital. We’ll send you a sign-in link. No password is needed.</p>
     <div class="field">
       <label for="email">Email address</label>
-      <input type="email" id="email" placeholder="you@disastercare.co.uk" autofocus>
+      <input type="email" id="email" placeholder="you@example.com" autocomplete="email" autofocus>
     </div>
     <button class="btn green" id="btn" onclick="send()">Send sign-in link</button>
     <div class="msg" id="msg"></div>
@@ -94,7 +98,14 @@
 
     if (error) {
       msg.className = 'msg error';
-      msg.textContent = 'Error: ' + error.message;
+      // The sign-up gate refuses emails that aren't staff or a registered customer
+      const refused = error.status === 403 || error.status === 422 || /not registered|not allowed|signups not allowed/i.test(error.message || '');
+      const tooMany = error.status === 429 || /rate limit|security purposes/i.test(error.message || '');
+      msg.textContent = refused
+        ? 'This email address isn’t registered for remote monitoring. Please check it, or contact Disaster Care Capital.'
+        : tooMany
+        ? 'A sign-in link was sent very recently. Please wait a minute, check your inbox and spam folder, then try again.'
+        : 'Sorry, we couldn’t send the link: ' + error.message;
       btn.disabled = false;
       btn.textContent = 'Send sign-in link';
     } else {

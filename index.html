@@ -5,35 +5,37 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Jobs · DCC Environmental Monitor</title>
   <link rel="stylesheet" href="theme.css">
+  <script src="app.js"></script>
   <style>
     .list-view { display: flex; gap: 10px; }
     .filters { width: 200px; flex-shrink: 0; }
     .filters .field input, .filters .field select { height: 32px; }
-    .filters hr { border: 0; border-top: 1px solid #ccc; margin: 12px 0; }
+    .filters hr { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
     .filters .btn { margin-bottom: 14px; }
     .table-wrap { flex: 1; min-width: 0; overflow-x: auto; }
 
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    th { text-align: left; font-weight: 700; padding: 6px 6px; border-bottom: 2px solid #dee2e6; white-space: nowrap; cursor: pointer; user-select: none; }
+    th { text-align: left; font-weight: 700; padding: 6px 6px; border-bottom: 2px solid var(--rule); white-space: nowrap; cursor: pointer; user-select: none; }
     th.nosort { cursor: default; }
     th .sort { display: inline-block; margin-left: 4px; opacity: 0.5; font-size: 10px; }
     th.sorted .sort { opacity: 1; }
-    td { padding: 5px 6px; border-bottom: 1px solid #eee; white-space: nowrap; vertical-align: middle; }
+    td { padding: 5px 6px; border-bottom: 1px solid var(--line-soft); white-space: nowrap; vertical-align: middle; }
     tbody tr { cursor: pointer; }
-    tbody tr:hover td { background: #f5f5f5; }
-    tr.archived td { color: #aaa; }
+    tbody tr:hover td { background: var(--hover); }
+    tr.archived td { color: var(--muted-row); }
 
-    .badge { display: inline-block; min-width: 58px; text-align: center; padding: 1px 8px; border-radius: 3px; color: #fff; font-size: 12px; }
+    .badge { display: inline-block; min-width: 58px; text-align: center; padding: 1px 8px; border-radius: 3px; color: #ffffff; font-size: 12px; }
     .badge.active { background: var(--green-dark); }
-    .badge.archived { background: #ccc; }
+    .badge.archived { background: var(--badge-off); }
     .kit { font-family: Arial, sans-serif; }
     .dots { display: flex; gap: 4px; align-items: center; }
     .dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
-    .dot.live { background: #1e9e1e; } .dot.stale { background: #f2c511; } .dot.offline { background: #e32222; } .dot.none { background: #ccc; }
+    .dot.live { background: #1e9e1e; } .dot.delayed { background: #f2c511; } .dot.offline { background: #e32222; } .dot.none { background: var(--badge-off); }
     .running { display: flex; align-items: center; gap: 6px; }
-    .link-btn { display: inline-flex; width: 22px; height: 22px; align-items: center; justify-content: center; border: 1px solid #d3d3d3; border-radius: 2px; background: #fff; color: #000; }
-    .link-btn:hover { background: #f0f0f0; }
+    .link-btn { display: inline-flex; width: 22px; height: 22px; align-items: center; justify-content: center; border: 1px solid var(--input-bd); border-radius: 2px; background: var(--surface); color: var(--text); }
+    .link-btn:hover { background: var(--hover); }
     .count { color: var(--text-dim); font-size: 12px; margin-top: 10px; }
+    body.customer .staff-only { display: none !important; }
 
     @media (max-width: 800px) {
       .list-view { flex-direction: column; }
@@ -50,6 +52,7 @@
   </a>
   <ul class="nav-links">
     <li><a class="selected" href="index.html"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h2v16h16v2H3V3zm4 10h3v5H7v-5zm5-5h3v10h-3V8zm5 3h3v7h-3v-7z"/></svg><span class="label">Dashboard</span></a></li>
+    <li><button class="theme-btn" onclick="toggleTheme()" title="Switch light / dark mode"><svg class="moon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg><span class="label">Theme</span></button></li>
     <li><button onclick="signOut()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg><span class="label">Logout</span></button></li>
   </ul>
 </nav>
@@ -63,11 +66,11 @@
   <div class="panel">
     <div class="list-view">
       <aside class="filters">
-        <button class="btn green" onclick="openNewJobModal()">+ New job</button>
+        <button class="btn green staff-only" onclick="openNewJobModal()">+ New job</button>
         <div class="field"><label for="fId">Job ID</label><input id="fId" oninput="render()"></div>
         <div class="field"><label for="fName">Name</label><input id="fName" oninput="render()"></div>
         <div class="field"><label for="fPostcode">Postcode</label><input id="fPostcode" oninput="render()"></div>
-        <div class="field"><label for="fKit">Kit</label><select id="fKit" onchange="render()"><option value="">All kits</option></select></div>
+        <div class="field staff-only"><label for="fKit">Kit</label><select id="fKit" onchange="render()"><option value="">All kits</option></select></div>
         <hr>
         <div class="field" style="display:flex;gap:8px;align-items:center;cursor:pointer" onclick="toggleOffline()">
           <span class="cb" id="fOffline"></span><span>Offline sensors only</span>
@@ -123,12 +126,19 @@
     { key: 'status',   label: 'Status' },
     { key: 'name',     label: 'Name' },
     { key: 'postcode', label: 'Postcode' },
-    { key: 'kit',      label: 'Kit' },
-    { key: 'clickup',  label: 'ClickUp', nosort: true },
+    { key: 'kit',      label: 'Kit', staffOnly: true },
+    { key: 'clickup',  label: 'ClickUp', nosort: true, staffOnly: true },
     { key: 'lastSeen', label: 'Last seen online' },
     { key: 'sensors',  label: 'Sensors', nosort: true },
     { key: 'running',  label: 'Running time' },
   ];
+
+  // Staff see every job; customers see only jobs they've been given access to (enforced by the database)
+  let isStaff = true;
+  async function checkStaff() {
+    try { return (await sb('rpc/is_staff', { method: 'POST', body: {} })) === true; }
+    catch (e) { console.warn('Role check failed, showing staff view', e); return true; } // before the access migration
+  }
 
   async function sb(path, opts = {}) {
     const { data: { session } } = await sb_auth.auth.getSession();
@@ -169,12 +179,12 @@
       const now = Date.now();
       jobs = (rows || []).map((j, i) => {
         const byDevice = {};
-        for (const r of latest[i]) if (!byDevice[r.device_name]) byDevice[r.device_name] = r.recorded_at;
-        const sensors = Object.entries(byDevice).sort(([a], [b]) => a.localeCompare(b)).map(([name, ts]) => {
-          const age = (now - new Date(ts)) / 3600000;
-          return { name, ts, status: age < 2 ? 'live' : age < 24 ? 'stale' : 'offline' };
+        for (const r of latest[i]) (byDevice[r.device_name] ||= []).push(r.recorded_at);
+        const sensors = Object.entries(byDevice).sort(([a], [b]) => a.localeCompare(b)).map(([name, list]) => {
+          const st = sensorStatus(list, now);
+          return { name, ts: list[0], status: st.status, label: st.label, age: st.age };
         });
-        const lastSeen = sensors.length ? sensors.map(s => s.ts).sort().pop() : null;
+        const lastSeen = sensors.length ? sensors.map(s => s.ts).sort((a, b) => parseTs(a) - parseTs(b)).pop() : null;
         const start = j.job_start_date ? new Date(j.job_start_date) : null;
         const end = j.job_end_date ? new Date(j.job_end_date) : new Date();
         const running = start ? Math.max(0, Math.floor((end - start) / 86400000)) : null;
@@ -185,6 +195,12 @@
       const fKit = document.getElementById('fKit'), cur = fKit.value;
       fKit.innerHTML = '<option value="">All kits</option>' + kits.map(k => `<option>${esc(k)}</option>`).join('');
       fKit.value = kits.includes(cur) ? cur : '';
+      // A customer with a single job goes straight to it (once per visit, so "back" still works)
+      if (!isStaff && view === 'active' && jobs.length === 1) {
+        let shown = false;
+        try { shown = sessionStorage.getItem('dcc-auto-open') === '1'; sessionStorage.setItem('dcc-auto-open', '1'); } catch (e) { shown = true; }
+        if (!shown) { location.replace(`jobs.html?job=${jobs[0].id}`); return; }
+      }
       render();
     } catch (e) {
       console.error(e);
@@ -199,7 +215,7 @@
       case 'name': return (j.site_name || '').toLowerCase();
       case 'postcode': return j.postcode || '';
       case 'kit': return j.device_kit_name || '';
-      case 'lastSeen': return j.lastSeen || '';
+      case 'lastSeen': return j.lastSeen ? parseTs(j.lastSeen).getTime() : 0;
       case 'running': return j.running ?? -1;
     }
   }
@@ -216,7 +232,7 @@
   }
 
   function render() {
-    document.getElementById('headRow').innerHTML = COLUMNS.map(c => c.nosort
+    document.getElementById('headRow').innerHTML = COLUMNS.filter(c => isStaff || !c.staffOnly).map(c => c.nosort
       ? `<th class="nosort">${c.label}</th>`
       : `<th class="${sortKey === c.key ? 'sorted' : ''}" onclick="setSort('${c.key}')">${c.label}<span class="sort">${sortKey === c.key ? (sortDir > 0 ? '▲' : '▼') : '▲▼'}</span></th>`
     ).join('');
@@ -236,14 +252,17 @@
 
     const body = document.getElementById('jobBody');
     if (!list.length) {
-      body.innerHTML = `<tr><td colspan="9" class="empty">${jobs.length ? 'No jobs match the filters' : view === 'active' ? 'No active jobs' : 'No archived jobs'}</td></tr>`;
+      const none = !isStaff && view === 'active'
+        ? 'No monitoring has been set up for your email address yet. Please contact Disaster Care Capital.'
+        : view === 'active' ? 'No active jobs' : 'No archived jobs';
+      body.innerHTML = `<tr><td colspan="9" class="empty">${jobs.length ? 'No jobs match the filters' : none}</td></tr>`;
       document.getElementById('count').textContent = '';
       return;
     }
 
     body.innerHTML = list.map(j => {
-      const worst = j.sensors.some(s => s.status === 'offline') ? 'offline' : j.sensors.some(s => s.status === 'stale') ? 'stale' : j.sensors.length ? 'live' : 'none';
-      const dots = j.sensors.map(s => `<span class="dot ${s.status}" title="${esc(s.name)} · ${fmtTs(s.ts)}"></span>`).join('')
+      const worst = j.sensors.some(s => s.status === 'offline') ? 'offline' : j.sensors.some(s => s.status === 'delayed') ? 'delayed' : j.sensors.length ? 'live' : 'none';
+      const dots = j.sensors.map(s => `<span class="dot ${s.status}" title="${esc(s.name)} · ${s.label} · last reading ${fmtDuration(s.age)} ago"></span>`).join('')
         || '<span style="color:#aaa">No readings yet</span>';
       const clickup = j.clickup_task_id
         ? `<a class="link-btn" href="https://app.clickup.com/t/${encodeURIComponent(j.clickup_task_id)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Open ClickUp task">
@@ -254,8 +273,7 @@
         <td><span class="badge ${j.active ? 'active' : 'archived'}">${j.active ? 'Active' : 'Archived'}</span></td>
         <td>${esc(j.site_name || 'Unnamed')}</td>
         <td>${esc(j.postcode || '—')}</td>
-        <td class="kit">${esc(j.device_kit_name || '—')}</td>
-        <td>${clickup}</td>
+        ${isStaff ? `<td class="kit">${esc(j.device_kit_name || '—')}</td><td>${clickup}</td>` : ''}
         <td>${j.lastSeen ? fmtTs(j.lastSeen) : '—'}</td>
         <td><div class="dots">${dots}</div></td>
         <td>${j.running == null ? '—' : `<span class="running"><span class="dot ${j.active ? worst : 'none'}"></span>${j.running} day${j.running === 1 ? '' : 's'}</span>`}</td>
@@ -322,7 +340,7 @@
   // ── Helpers ────────────────────────────────────────────
   const pad = n => String(n).padStart(2, '0');
   function fmtTs(ts) {
-    const d = new Date(ts);
+    const d = parseTs(ts);
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
   }
   const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -335,6 +353,8 @@
   (async () => {
     const { data: { session } } = await sb_auth.auth.getSession();
     if (!session) { location.href = 'login.html'; return; }
+    isStaff = await checkStaff();
+    document.body.classList.toggle('customer', !isStaff);
     switchView(view);
   })();
 </script>
